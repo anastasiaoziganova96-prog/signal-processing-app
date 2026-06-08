@@ -1,7 +1,10 @@
-// ПЗ №11: Пуассоновский шум (счетчик Гейгера)
+// ПЗ №11: Пуассоновский шум (счетчик Гейгера) + загрузка аудиофайлов
 let audioContext = null;
 let currentSource = null;
-let currentSamples = null;
+let poissonSamples = null;
+let uploadedSamples11 = null;
+let uploadedRate11 = 44100;
+let currentLambda = 0.01;
 
 function initAudio() {
     if (!audioContext) {
@@ -12,15 +15,19 @@ function initAudio() {
     }
 }
 
+// Генерация пуассоновского шума
 function generatePoissonNoise(lambda, duration, sampleRate = 22050) {
     const numSamples = Math.floor(duration * sampleRate);
     const samples = new Array(numSamples).fill(0);
     const p = lambda;
     
     if (lambda < 1) {
+        // Режим редких событий - отдельные "щелчки" (счетчик Гейгера)
         for (let i = 0; i < numSamples; i++) {
             if (Math.random() < p) {
+                // Импульс (щелчок)
                 samples[i] = 1;
+                // Добавляем небольшой "хвост" для реалистичности
                 if (i + 10 < numSamples) {
                     for (let j = 1; j < 5 && i+j < numSamples; j++) {
                         samples[i+j] += 0.5 / j;
@@ -29,6 +36,7 @@ function generatePoissonNoise(lambda, duration, sampleRate = 22050) {
             }
         }
     } else {
+        // Режим непрерывного шума - аппроксимация нормальным распределением
         for (let i = 0; i < numSamples; i++) {
             let u = 0, v = 0;
             while (u === 0) u = Math.random();
@@ -40,6 +48,7 @@ function generatePoissonNoise(lambda, duration, sampleRate = 22050) {
         }
     }
     
+    // Нормализация
     const maxAmp = Math.max(...samples.map(Math.abs));
     if (maxAmp > 0 && maxAmp > 1) {
         for (let i = 0; i < samples.length; i++) {
@@ -49,6 +58,31 @@ function generatePoissonNoise(lambda, duration, sampleRate = 22050) {
     return samples;
 }
 
+// Загрузка аудиофайла
+function loadAudioFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const arrayBuffer = e.target.result;
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const samples = audioBuffer.getChannelData(0);
+                resolve({
+                    samples: Array.from(samples),
+                    rate: audioBuffer.sampleRate,
+                    name: file.name,
+                    duration: audioBuffer.duration
+                });
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Вычисление спектра
 function computeSpectrum(samples, sampleRate) {
     const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
@@ -67,6 +101,7 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
+// Построение графика сигнала
 function plotSignal(samples, canvasId, color = '#9370DB') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -75,7 +110,7 @@ function plotSignal(samples, canvasId, color = '#9370DB') {
     const width = canvas.width;
     const height = canvas.height;
     
-    const displaySamples = samples.slice(0, 2000);
+    const displaySamples = samples.slice(0, Math.min(samples.length, 2000));
     const step = displaySamples.length / width;
     
     ctx.fillStyle = '#1a1a2e';
@@ -119,6 +154,7 @@ function plotSignal(samples, canvasId, color = '#9370DB') {
     ctx.stroke();
 }
 
+// Построение гистограммы
 function plotHistogram(samples, canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -147,13 +183,20 @@ function plotHistogram(samples, canvasId) {
         ctx.fillStyle = '#9370DB';
         ctx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
     }
+    
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#9370DB';
+    ctx.fillText('Распределение Пуассона', width - 150, 30);
 }
 
-function plotSpectrum(samples, canvasId, sampleRate) {
+// Построение спектра с сравнением
+function plotSpectrumComparison(poissonSamples, uploadedSamples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
-    const { freqs, spectrum } = computeSpectrum(samples, sampleRate);
+    const { freqs, spectrum: poissonSpec } = computeSpectrum(poissonSamples, sampleRate);
+    const { spectrum: upSpec } = uploadedSamples ? computeSpectrum(uploadedSamples, sampleRate) : { spectrum: null };
+    
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -163,6 +206,7 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
     
+    // Спектр пуассоновского шума (фиолетовый)
     ctx.beginPath();
     ctx.fillStyle = '#9370DB33';
     
@@ -170,8 +214,8 @@ function plotSpectrum(samples, canvasId, sampleRate) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
-        if (idx < spectrum.length) {
-            const y = height - spectrum[idx] * height * 2;
+        if (idx < poissonSpec.length) {
+            const y = height - poissonSpec[idx] * height * 2;
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
@@ -181,29 +225,58 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.fill();
     
     ctx.beginPath();
-    ctx.strokeStyle = '#ffaa44';
+    ctx.strokeStyle = '#9370DB';
     ctx.lineWidth = 1.5;
     
     for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
-        if (idx < spectrum.length) {
-            const y = height - spectrum[idx] * height * 2;
+        if (idx < poissonSpec.length) {
+            const y = height - poissonSpec[idx] * height * 2;
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
     }
     ctx.stroke();
+    
+    // Спектр загруженного файла (желтый)
+    if (upSpec) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#ffaa44';
+        ctx.lineWidth = 1.5;
+        
+        for (let x = 0; x < width; x++) {
+            const freq = (x / width) * maxFreq;
+            let idx = Math.floor(freq / maxFreq * upSpec.length);
+            idx = Math.min(idx, upSpec.length - 1);
+            if (idx > 10 && idx < upSpec.length) {
+                const y = height - upSpec[idx] * height * 2;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
+    
+    // Легенда
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#9370DB';
+    ctx.fillText('Пуассоновский шум', width - 150, 30);
+    if (upSpec) {
+        ctx.fillStyle = '#ffaa44';
+        ctx.fillText('Загруженный файл', width - 150, 50);
+    }
 }
 
-function playSignal(samples, sampleRate) {
+// Прослушивание
+function playSignal(samples, rate) {
     initAudio();
     if (currentSource) {
         try { currentSource.stop(); } catch(e) {}
     }
     
-    const buffer = audioContext.createBuffer(1, samples.length, sampleRate);
+    const buffer = audioContext.createBuffer(1, samples.length, rate);
     buffer.copyToChannel(new Float32Array(samples), 0);
     
     currentSource = audioContext.createBufferSource();
@@ -226,29 +299,63 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('genPoisson').onclick = () => {
         const lambda = parseFloat(lambdaSlider.value);
         const duration = parseFloat(durationSlider.value);
+        currentLambda = lambda;
         
-        currentSamples = generatePoissonNoise(lambda, duration, 22050);
+        poissonSamples = generatePoissonNoise(lambda, duration, 22050);
         
-        plotSignal(currentSamples, 'poissonPlot', '#9370DB');
-        plotHistogram(currentSamples, 'poissonHistogram');
-        plotSpectrum(currentSamples, 'poissonSpectrum', 22050);
+        plotSignal(poissonSamples, 'poissonPlot', '#9370DB');
+        plotHistogram(poissonSamples, 'poissonHistogram');
+        plotSpectrumComparison(poissonSamples, uploadedSamples11, 'poissonSpectrum', 22050);
         
-        const clickCount = currentSamples.filter(s => Math.abs(s) > 0.5).length;
+        const clickCount = poissonSamples.filter(s => Math.abs(s) > 0.5).length;
         const expectedClicks = lambda * 22050 * duration;
         
         if (lambda < 0.1) {
-            info.innerHTML = `⚛️ Счётчик Гейгера: λ = ${lambda}<br>📊 Фактических щелчков: ${clickCount} (ожидается ~${expectedClicks.toFixed(0)})<br>🎵 Должны слышаться отдельные "щелчки"`;
+            info.innerHTML = `⚛️ Счётчик Гейгера: λ = ${lambda}<br>📊 Фактических щелчков: ${clickCount} (ожидается ~${expectedClicks.toFixed(0)})<br>🎵 Должны слышаться отдельные "щелчки"<br>🟣 Фиолетовый спектр - пуассоновский шум, 🟡 Желтый - ваш файл (если загружен)`;
         } else {
-            info.innerHTML = `⚛️ Пуассоновский шум: λ = ${lambda} (режим непрерывного шума)<br>📊 Спектр плоский - это белый шум<br>🎵 Звучит как шипение (белый шум)`;
+            info.innerHTML = `⚛️ Пуассоновский шум: λ = ${lambda} (режим непрерывного шума)<br>📊 Спектр плоский - это белый шум<br>🎵 Звучит как шипение (белый шум)<br>🟣 Фиолетовый спектр - пуассоновский шум, 🟡 Желтый - ваш файл (если загружен)`;
+        }
+    };
+    
+    document.getElementById('loadWav11').onclick = async () => {
+        const fileInput = document.getElementById('uploadWav11');
+        if (!fileInput.files[0]) {
+            info.innerHTML = '⚠️ Выберите аудиофайл!';
+            return;
+        }
+        
+        initAudio();
+        info.innerHTML = '⏳ Загрузка файла...';
+        
+        try {
+            const data = await loadAudioFile(fileInput.files[0]);
+            uploadedSamples11 = data.samples;
+            uploadedRate11 = data.rate;
+            
+            if (poissonSamples) {
+                plotSpectrumComparison(poissonSamples, uploadedSamples11, 'poissonSpectrum', 22050);
+            }
+            info.innerHTML = `✅ Файл "${data.name}" загружен!<br>📊 Длительность: ${data.duration.toFixed(2)} сек<br>🟡 Желтый спектр - ваш файл, фиолетовый - пуассоновский шум`;
+        } catch (err) {
+            info.innerHTML = `❌ Ошибка: ${err.message}`;
         }
     };
     
     document.getElementById('playPoisson').onclick = () => {
-        if (currentSamples) {
-            playSignal(currentSamples, 22050);
-            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        if (poissonSamples) {
+            playSignal(poissonSamples, 22050);
+            info.innerHTML += `<br>🎵 Воспроизведение пуассоновского шума...`;
         } else {
             info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
+    };
+    
+    document.getElementById('playUploaded11').onclick = () => {
+        if (uploadedSamples11) {
+            playSignal(uploadedSamples11, uploadedRate11);
+            info.innerHTML += `<br>🎵 Воспроизведение загруженного файла...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала загрузите файл!';
         }
     };
     
@@ -261,9 +368,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // Инициализация
-    currentSamples = generatePoissonNoise(0.01, 2, 22050);
-    plotSignal(currentSamples, 'poissonPlot', '#9370DB');
-    plotHistogram(currentSamples, 'poissonHistogram');
-    plotSpectrum(currentSamples, 'poissonSpectrum', 22050);
-    info.innerHTML = '⚛️ Пуассоновский шум с λ=0.01 - имитация счётчика Гейгера';
+    poissonSamples = generatePoissonNoise(0.01, 2, 22050);
+    plotSignal(poissonSamples, 'poissonPlot', '#9370DB');
+    plotHistogram(poissonSamples, 'poissonHistogram');
+    plotSpectrumComparison(poissonSamples, null, 'poissonSpectrum', 22050);
+    info.innerHTML = '⚛️ Пуассоновский шум с λ=0.01 - имитация счётчика Гейгера. Загрузите свой файл для сравнения';
 });
