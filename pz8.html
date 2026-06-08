@@ -12,12 +12,18 @@
         <h1 class="section-title">🌊 ПЗ №8: Броуновский шум (1/f²)</h1>
         
         <div class="control-group">
-            <h3>Параметры</h3>
+            <h3>🎛️ ГЕНЕРАЦИЯ БРОУНОВСКОГО ШУМА</h3>
             <label>Длительность (сек):</label>
             <input type="range" id="duration8" min="0.5" max="5" value="2" step="0.1">
             <span id="duration8Val">2.0</span> с<br><br>
             
-            <button id="genBrownNoise">Сгенерировать броуновский шум</button>
+            <button id="genBrownNoise">🌊 Сгенерировать броуновский шум</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>📁 ЗАГРУЗИТЕ АУДИОФАЙЛ ДЛЯ СРАВНЕНИЯ</h3>
+            <input type="file" id="uploadWav8" accept=".wav,.mp3,.ogg">
+            <button id="loadWav8">📥 Загрузить и сравнить спектры</button>
         </div>
         
         <div class="plot-container">
@@ -29,13 +35,15 @@
         </div>
         
         <div class="control-group">
-            <h3>Прослушивание</h3>
-            <button id="playBrown">▶ Прослушать</button>
+            <h3>🎵 ПРОСЛУШИВАНИЕ</h3>
+            <button id="playBrown">▶ Броуновский шум</button>
+            <button id="playUploaded8">▶ Загруженный файл</button>
             <button id="stopBrown">⏹️ Остановить</button>
         </div>
         
         <div class="info-panel" id="info8">
-            🌊 Броуновский шум = интегрированный белый шум. Спектр ~ 1/f²
+            🌊 Броуновский шум = интегрированный белый шум. Спектр ~ 1/f²<br>
+            Загрузите свой аудиофайл для сравнения.
         </div>
     </div>
     <script src="pz8.js"></script>
