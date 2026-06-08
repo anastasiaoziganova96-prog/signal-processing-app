@@ -12,7 +12,7 @@
         <h1 class="section-title">⚛️ ПЗ №11: Пуассоновский шум (счетчик Гейгера)</h1>
         
         <div class="control-group">
-            <h3>Параметры</h3>
+            <h3>🎛️ ГЕНЕРАЦИЯ ПУАССОНОВСКОГО ШУМА</h3>
             <label>Интенсивность λ (среднее число частиц):</label>
             <input type="range" id="lambda" min="0.001" max="100" value="0.01" step="0.001">
             <span id="lambdaVal">0.010</span><br>
@@ -22,7 +22,13 @@
             <input type="range" id="duration11" min="1" max="5" value="2" step="0.5">
             <span id="duration11Val">2.0</span> с<br><br>
             
-            <button id="genPoisson">Сгенерировать пуассоновский шум</button>
+            <button id="genPoisson">⚛️ Сгенерировать пуассоновский шум</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>📁 ЗАГРУЗИТЕ АУДИОФАЙЛ ДЛЯ СРАВНЕНИЯ</h3>
+            <input type="file" id="uploadWav11" accept=".wav,.mp3,.ogg">
+            <button id="loadWav11">📥 Загрузить и сравнить</button>
         </div>
         
         <div class="plot-container">
@@ -38,13 +44,16 @@
         </div>
         
         <div class="control-group">
-            <h3>Прослушивание</h3>
-            <button id="playPoisson">▶ Прослушать</button>
+            <h3>🎵 ПРОСЛУШИВАНИЕ</h3>
+            <button id="playPoisson">▶ Пуассоновский шум</button>
+            <button id="playUploaded11">▶ Загруженный файл</button>
             <button id="stopPoisson">⏹️ Остановить</button>
         </div>
         
         <div class="info-panel" id="info11">
-            ⚛️ Пуассоновский шум имитирует счётчик Гейгера. При малых λ слышны отдельные щелчки
+            ⚛️ Пуассоновский шум имитирует счётчик Гейгера.<br>
+            При малых λ слышны отдельные щелчки. При больших λ - непрерывный белый шум.<br>
+            Загрузите свой аудиофайл для сравнения спектров.
         </div>
     </div>
     <script src="pz11.js"></script>
