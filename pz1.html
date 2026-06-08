@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №1 - Синусоидальные сигналы</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">📊 ПЗ №1: Синусоидальные сигналы</h1>
+        
+        <div class="control-group">
+            <h3>Параметры сигнала</h3>
+            <label>Частота (Гц):</label>
+            <input type="range" id="freq" min="100" max="1000" value="440" step="10">
+            <span id="freqValue">440</span> Гц<br><br>
+            
+            <label>Амплитуда:</label>
+            <input type="range" id="amp" min="0" max="1" value="1" step="0.05">
+            <span id="ampValue">1.0</span><br><br>
+            
+            <button id="genSine">Сгенерировать синус</button>
+            <button id="genCosine">Сгенерировать косинус</button>
+            <button id="genSum">Сгенерировать сумму</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="signalPlot" width="800" height="300"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Спектральный анализ</h3>
+            <button id="calcSpectrum">Построить спектр</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="spectrumPlot" width="800" height="300"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Прослушивание</h3>
+            <button id="playSignal">▶ Прослушать</button>
+            <button id="stopSignal">⏹️ Остановить</button>
+        </div>
+    </div>
+    
+    <script src="pz1.js"></script>
+</body>
+</html>
