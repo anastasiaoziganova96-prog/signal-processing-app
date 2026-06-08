@@ -1,7 +1,9 @@
-// ПЗ №5: Пилообразный сигнал (Sawtooth)
+// ПЗ №5: Пилообразный сигнал + загрузка WAV
 let audioContext = null;
 let currentSource = null;
-let currentSamples = null;
+let sawtoothSamples = null;
+let uploadedSamples5 = null;
+let uploadedRate5 = 44100;
 
 function initAudio() {
     if (!audioContext) {
@@ -31,10 +33,31 @@ function generateSawtooth(freq, amp, width = 1, duration = 0.5, sampleRate = 441
                 value = 1 - 2 * ((phase - width) / (1 - width));
             }
         }
-        
         samples.push(amp * value);
     }
     return samples;
+}
+
+function loadAudioFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const arrayBuffer = e.target.result;
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const samples = audioBuffer.getChannelData(0);
+                resolve({
+                    samples: Array.from(samples),
+                    rate: audioBuffer.sampleRate,
+                    name: file.name
+                });
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
 }
 
 function computeSpectrum(samples, sampleRate) {
@@ -107,11 +130,13 @@ function plotSignal(samples, canvasId, color = '#00ff88') {
     ctx.stroke();
 }
 
-function plotSpectrum(samples, canvasId, sampleRate) {
+function plotSpectrumComparison(sawtoothSamples, uploadedSamples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
-    const { freqs, spectrum } = computeSpectrum(samples, sampleRate);
+    const { freqs, spectrum: sawSpec } = computeSpectrum(sawtoothSamples, sampleRate);
+    const { spectrum: upSpec } = uploadedSamples ? computeSpectrum(uploadedSamples, sampleRate) : { spectrum: null };
+    
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -121,28 +146,58 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
     
-    const barWidth = 2;
-    for (let x = 0; x < width; x += barWidth + 1) {
+    // Спектр пилообразного сигнала (зеленый)
+    ctx.beginPath();
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 1.5;
+    
+    for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
-        if (idx < spectrum.length && spectrum[idx] > 0.01) {
-            const barHeight = spectrum[idx] * height * 1.5;
-            if (barHeight > 1) {
-                ctx.fillStyle = '#ffaa44';
-                ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        if (idx < sawSpec.length) {
+            const y = height - sawSpec[idx] * height * 1.5;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Спектр загруженного файла (желтый)
+    if (upSpec) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#ffaa44';
+        ctx.lineWidth = 1.5;
+        
+        for (let x = 0; x < width; x++) {
+            const freq = (x / width) * maxFreq;
+            let idx = Math.floor(freq / maxFreq * upSpec.length);
+            idx = Math.min(idx, upSpec.length - 1);
+            if (idx > 10 && idx < upSpec.length) {
+                const y = height - upSpec[idx] * height * 2;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
             }
         }
+        ctx.stroke();
+    }
+    
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#00ff88';
+    ctx.fillText('Пилообразный сигнал', width - 150, 30);
+    if (upSpec) {
+        ctx.fillStyle = '#ffaa44';
+        ctx.fillText('Загруженный файл', width - 150, 50);
     }
 }
 
-function playSignal(samples, sampleRate) {
+function playSignal(samples, rate) {
     initAudio();
     if (currentSource) {
         try { currentSource.stop(); } catch(e) {}
     }
     
-    const buffer = audioContext.createBuffer(1, samples.length, sampleRate);
+    const buffer = audioContext.createBuffer(1, samples.length, rate);
     buffer.copyToChannel(new Float32Array(samples), 0);
     
     currentSource = audioContext.createBufferSource();
@@ -170,22 +225,52 @@ document.addEventListener('DOMContentLoaded', () => {
         const amp = parseFloat(ampSlider.value);
         const width = parseFloat(widthSlider.value);
         
-        currentSamples = generateSawtooth(freq, amp, width, 0.5, 44100);
-        plotSignal(currentSamples, 'sawtoothPlot', '#00ff88');
-        plotSpectrum(currentSamples, 'sawtoothSpectrum', 44100);
+        sawtoothSamples = generateSawtooth(freq, amp, width, 0.5, 44100);
+        plotSignal(sawtoothSamples, 'sawtoothPlot', '#00ff88');
+        plotSpectrumComparison(sawtoothSamples, uploadedSamples5, 'sawtoothSpectrum', 44100);
         
-        info.innerHTML = `🔺 Пилообразный сигнал: ${freq} Гц<br>Спектр содержит все гармоники: ${freq}, ${2*freq}, ${3*freq}... с амплитудой 1/n`;
-        if (width < 1) {
-            info.innerHTML += `<br>Ширина импульса: ${width} (изменяет форму сигнала)`;
+        info.innerHTML = `🔺 Пилообразный сигнал: ${freq} Гц<br>Спектр содержит все гармоники: ${freq}, ${2*freq}, ${3*freq}...<br>Зеленый спектр - пилообразный, желтый - ваш файл (если загружен)`;
+    };
+    
+    document.getElementById('loadWav5').onclick = async () => {
+        const fileInput = document.getElementById('uploadWav5');
+        if (!fileInput.files[0]) {
+            info.innerHTML = '⚠️ Выберите аудиофайл!';
+            return;
+        }
+        
+        initAudio();
+        info.innerHTML = '⏳ Загрузка файла...';
+        
+        try {
+            const data = await loadAudioFile(fileInput.files[0]);
+            uploadedSamples5 = data.samples;
+            uploadedRate5 = data.rate;
+            
+            if (sawtoothSamples) {
+                plotSpectrumComparison(sawtoothSamples, uploadedSamples5, 'sawtoothSpectrum', 44100);
+            }
+            info.innerHTML = `✅ Файл "${data.name}" загружен!<br>🟡 Желтый спектр - ваш файл, зеленый - пилообразный сигнал`;
+        } catch (err) {
+            info.innerHTML = `❌ Ошибка: ${err.message}`;
         }
     };
     
     document.getElementById('playSawtooth').onclick = () => {
-        if (currentSamples) {
-            playSignal(currentSamples, 44100);
-            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        if (sawtoothSamples) {
+            playSignal(sawtoothSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение пилообразного сигнала...`;
         } else {
             info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
+    };
+    
+    document.getElementById('playUploaded5').onclick = () => {
+        if (uploadedSamples5) {
+            playSignal(uploadedSamples5, uploadedRate5);
+            info.innerHTML += `<br>🎵 Воспроизведение загруженного файла...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала загрузите файл!';
         }
     };
     
@@ -198,8 +283,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // Инициализация
-    currentSamples = generateSawtooth(1000, 1, 1, 0.5, 44100);
-    plotSignal(currentSamples, 'sawtoothPlot', '#00ff88');
-    plotSpectrum(currentSamples, 'sawtoothSpectrum', 44100);
-    info.innerHTML = '🔺 Пилообразный сигнал 1000 Гц. Все гармоники видны на спектре';
+    sawtoothSamples = generateSawtooth(1000, 1, 1, 0.5, 44100);
+    plotSignal(sawtoothSamples, 'sawtoothPlot', '#00ff88');
+    plotSpectrumComparison(sawtoothSamples, null, 'sawtoothSpectrum', 44100);
+    info.innerHTML = '🔺 Пилообразный сигнал 1000 Гц. Загрузите свой файл для сравнения спектров';
 });
