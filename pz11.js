@@ -12,21 +12,15 @@ function initAudio() {
     }
 }
 
-// Генерация пуассоновского шума
-function generatePoissonNoise(lambda, duration, sampleRate = 44100) {
+function generatePoissonNoise(lambda, duration, sampleRate = 22050) {
     const numSamples = Math.floor(duration * sampleRate);
     const samples = new Array(numSamples).fill(0);
-    
-    // Пуассоновское распределение: вероятность события в каждом отсчёте
-    const p = lambda; // вероятность события в одном отсчёте (для малых λ)
+    const p = lambda;
     
     if (lambda < 1) {
-        // Режим редких событий - отдельные "щелчки"
         for (let i = 0; i < numSamples; i++) {
             if (Math.random() < p) {
-                // Импульс (щелчок)
                 samples[i] = 1;
-                // Добавляем небольшой "хвост" для реалистичности
                 if (i + 10 < numSamples) {
                     for (let j = 1; j < 5 && i+j < numSamples; j++) {
                         samples[i+j] += 0.5 / j;
@@ -35,9 +29,7 @@ function generatePoissonNoise(lambda, duration, sampleRate = 44100) {
             }
         }
     } else {
-        // Режим непрерывного шума - аппроксимация нормальным распределением
         for (let i = 0; i < numSamples; i++) {
-            // Пуассоновское приближается к нормальному при больших λ
             let u = 0, v = 0;
             while (u === 0) u = Math.random();
             while (v === 0) v = Math.random();
@@ -48,20 +40,17 @@ function generatePoissonNoise(lambda, duration, sampleRate = 44100) {
         }
     }
     
-    // Нормализация
     const maxAmp = Math.max(...samples.map(Math.abs));
     if (maxAmp > 0 && maxAmp > 1) {
         for (let i = 0; i < samples.length; i++) {
             samples[i] = samples[i] / maxAmp;
         }
     }
-    
     return samples;
 }
 
-// Вычисление спектра
 function computeSpectrum(samples, sampleRate) {
-    const n = samples.length;
+    const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -78,7 +67,6 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
-// Построение графика сигнала
 function plotSignal(samples, canvasId, color = '#9370DB') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -90,14 +78,24 @@ function plotSignal(samples, canvasId, color = '#9370DB') {
     const displaySamples = samples.slice(0, 2000);
     const step = displaySamples.length / width;
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    ctx.strokeStyle = '#444455';
+    ctx.lineWidth = 0.5;
+    for (let i = -2; i <= 2; i++) {
+        const y = height / 2 + i * height / 4;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
     
     ctx.beginPath();
-    ctx.strokeStyle = '#cccccc';
-    ctx.lineWidth = 0.5;
-    const zeroY = height / 2;
-    ctx.moveTo(0, zeroY);
-    ctx.lineTo(width, zeroY);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
     ctx.stroke();
     
     ctx.beginPath();
@@ -121,7 +119,6 @@ function plotSignal(samples, canvasId, color = '#9370DB') {
     ctx.stroke();
 }
 
-// Построение гистограммы
 function plotHistogram(samples, canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -141,7 +138,8 @@ function plotHistogram(samples, canvasId) {
     
     const maxCount = Math.max(...bins);
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
     
     const barWidth = width / numBins;
     for (let i = 0; i < numBins; i++) {
@@ -151,7 +149,6 @@ function plotHistogram(samples, canvasId) {
     }
 }
 
-// Построение спектра
 function plotSpectrum(samples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -162,26 +159,44 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     const height = canvas.height;
     
     const maxFreq = Math.min(8000, freqs[freqs.length-1]);
-    ctx.clearRect(0, 0, width, height);
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
     
     ctx.beginPath();
-    ctx.strokeStyle = '#9370DB';
-    ctx.lineWidth = 1;
+    ctx.fillStyle = '#9370DB33';
     
     for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
-        let idx = Math.floor(freq / maxFreq * spectrum.length);
-        idx = Math.min(idx, spectrum.length - 1);
-        if (idx > 10) {
-            const y = height - spectrum[idx] * height * 3;
-            if (x === 0) ctx.moveTo(x, Math.min(height, Math.max(0, y)));
-            else ctx.lineTo(x, Math.min(height, Math.max(0, y)));
+        let idx = 0;
+        for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
+        if (idx < spectrum.length) {
+            const y = height - spectrum[idx] * height * 2;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    }
+    ctx.lineTo(width, height);
+    ctx.lineTo(0, height);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffaa44';
+    ctx.lineWidth = 1.5;
+    
+    for (let x = 0; x < width; x++) {
+        const freq = (x / width) * maxFreq;
+        let idx = 0;
+        for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
+        if (idx < spectrum.length) {
+            const y = height - spectrum[idx] * height * 2;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         }
     }
     ctx.stroke();
 }
 
-// Прослушивание
 function playSignal(samples, sampleRate) {
     initAudio();
     if (currentSource) {
@@ -200,6 +215,7 @@ function playSignal(samples, sampleRate) {
 document.addEventListener('DOMContentLoaded', () => {
     const lambdaSlider = document.getElementById('lambda');
     const durationSlider = document.getElementById('duration11');
+    const info = document.getElementById('info11');
     
     document.getElementById('lambdaVal').textContent = lambdaSlider.value;
     document.getElementById('duration11Val').textContent = durationSlider.value;
@@ -207,13 +223,11 @@ document.addEventListener('DOMContentLoaded', () => {
     lambdaSlider.oninput = () => document.getElementById('lambdaVal').textContent = parseFloat(lambdaSlider.value).toFixed(3);
     durationSlider.oninput = () => document.getElementById('duration11Val').textContent = durationSlider.value;
     
-    const info = document.getElementById('info11');
-    
     document.getElementById('genPoisson').onclick = () => {
         const lambda = parseFloat(lambdaSlider.value);
         const duration = parseFloat(durationSlider.value);
         
-        currentSamples = generatePoissonNoise(lambda, duration, 22050); // Более низкая частота для лучшего звучания щелчков
+        currentSamples = generatePoissonNoise(lambda, duration, 22050);
         
         plotSignal(currentSamples, 'poissonPlot', '#9370DB');
         plotHistogram(currentSamples, 'poissonHistogram');
@@ -230,14 +244,19 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     document.getElementById('playPoisson').onclick = () => {
-        if (currentSamples) playSignal(currentSamples, 22050);
-        else info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        if (currentSamples) {
+            playSignal(currentSamples, 22050);
+            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
     };
     
     document.getElementById('stopPoisson').onclick = () => {
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
+            info.innerHTML += `<br>⏹️ Остановлено`;
         }
     };
     
@@ -246,5 +265,5 @@ document.addEventListener('DOMContentLoaded', () => {
     plotSignal(currentSamples, 'poissonPlot', '#9370DB');
     plotHistogram(currentSamples, 'poissonHistogram');
     plotSpectrum(currentSamples, 'poissonSpectrum', 22050);
-    info.innerHTML = 'Пуассоновский шум с λ=0.01 - имитация счётчика Гейгера';
+    info.innerHTML = '⚛️ Пуассоновский шум с λ=0.01 - имитация счётчика Гейгера';
 });
