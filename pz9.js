@@ -13,7 +13,6 @@ function initAudio() {
     }
 }
 
-// Генерация белого шума
 function generateWhiteNoise(duration, sampleRate = 44100) {
     const numSamples = duration * sampleRate;
     const samples = new Array(numSamples);
@@ -30,7 +29,6 @@ function generateWhiteNoise(duration, sampleRate = 44100) {
     return samples;
 }
 
-// Генерация розового шума (метод Voss-McCartney)
 function generatePinkNoise(duration, sampleRate = 44100) {
     const numSamples = Math.floor(duration * sampleRate);
     const numOctaves = 12;
@@ -51,20 +49,17 @@ function generatePinkNoise(duration, sampleRate = 44100) {
         }
     }
     
-    // Нормализация
     const maxAmp = Math.max(...pinkNoise.map(Math.abs));
     if (maxAmp > 0) {
         for (let i = 0; i < pinkNoise.length; i++) {
             pinkNoise[i] = pinkNoise[i] / maxAmp;
         }
     }
-    
     return pinkNoise;
 }
 
-// Вычисление спектра
 function computeSpectrum(samples, sampleRate) {
-    const n = samples.length;
+    const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -83,8 +78,7 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
-// Построение графика сигнала
-function plotSignal(samples, canvasId, color = '#FF69B4') {
+function plotSignal(samples, canvasId, color = '#ff69b4') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
@@ -95,14 +89,24 @@ function plotSignal(samples, canvasId, color = '#FF69B4') {
     const displaySamples = samples.slice(0, 800);
     const step = displaySamples.length / width;
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
+    ctx.strokeStyle = '#444455';
+    ctx.lineWidth = 0.5;
+    for (let i = -2; i <= 2; i++) {
+        const y = height / 2 + i * height / 4;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
     
     ctx.beginPath();
-    ctx.strokeStyle = '#cccccc';
-    ctx.lineWidth = 0.5;
-    const zeroY = height / 2;
-    ctx.moveTo(0, zeroY);
-    ctx.lineTo(width, zeroY);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
     ctx.stroke();
     
     ctx.beginPath();
@@ -126,7 +130,6 @@ function plotSignal(samples, canvasId, color = '#FF69B4') {
     ctx.stroke();
 }
 
-// Построение спектра с логарифмическим масштабом и сравнением
 function plotSpectrumComparison(pinkSamples, whiteSamples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -139,19 +142,22 @@ function plotSpectrumComparison(pinkSamples, whiteSamples, canvasId, sampleRate)
     const height = canvas.height;
     
     const maxFreq = Math.min(8000, freqs[freqs.length-1]);
-    ctx.clearRect(0, 0, width, height);
+    
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
     
     // Теоретическая линия 1/f
     ctx.beginPath();
-    ctx.strokeStyle = '#cccccc';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([5, 5]);
-    for (let x = 10; x < width; x++) {
+    ctx.strokeStyle = '#aaaaaa';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 6]);
+    
+    for (let x = 20; x < width; x++) {
         const freq = (x / width) * maxFreq;
         if (freq > 20) {
-            const theoretical = 100 / freq;
-            const y = height - Math.min(1, theoretical) * height;
-            if (x === 10) ctx.moveTo(x, y);
+            const theoretical = 200 / freq;
+            const y = height - Math.min(0.8, theoretical) * height;
+            if (x === 20) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
     }
@@ -160,8 +166,9 @@ function plotSpectrumComparison(pinkSamples, whiteSamples, canvasId, sampleRate)
     
     // Белый шум (плоский)
     ctx.beginPath();
-    ctx.strokeStyle = '#aaaaaa';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 1.5;
+    
     for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = Math.floor(freq / maxFreq * whiteSpec.length);
@@ -176,31 +183,32 @@ function plotSpectrumComparison(pinkSamples, whiteSamples, canvasId, sampleRate)
     
     // Розовый шум (спадающий)
     ctx.beginPath();
-    ctx.strokeStyle = '#FF69B4';
+    ctx.strokeStyle = '#ff69b4';
     ctx.lineWidth = 2;
+    
     for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = Math.floor(freq / maxFreq * pinkSpec.length);
         idx = Math.min(idx, pinkSpec.length - 1);
         if (idx > 10 && idx < pinkSpec.length) {
-            const y = height - pinkSpec[idx] * height * 3;
-            if (x === 0) ctx.moveTo(x, Math.min(height, Math.max(0, y)));
-            else ctx.lineTo(x, Math.min(height, Math.max(0, y)));
+            let y = height - pinkSpec[idx] * height * 3;
+            y = Math.max(0, Math.min(height, y));
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         }
     }
     ctx.stroke();
     
     // Легенда
-    ctx.font = '10px Arial';
-    ctx.fillStyle = '#cccccc';
-    ctx.fillText('~ 1/f (теория)', width - 120, 30);
+    ctx.font = '10px monospace';
     ctx.fillStyle = '#aaaaaa';
-    ctx.fillText('Белый шум (плоский)', width - 120, 50);
-    ctx.fillStyle = '#FF69B4';
-    ctx.fillText('Розовый шум (1/f)', width - 120, 70);
+    ctx.fillText('~ 1/f (теория)', width - 130, 30);
+    ctx.fillStyle = '#888888';
+    ctx.fillText('Белый шум (плоский)', width - 130, 50);
+    ctx.fillStyle = '#ff69b4';
+    ctx.fillText('Розовый шум (1/f)', width - 130, 70);
 }
 
-// Прослушивание
 function playSignal(samples, sampleRate) {
     initAudio();
     if (currentSource) {
@@ -218,53 +226,61 @@ function playSignal(samples, sampleRate) {
 
 document.addEventListener('DOMContentLoaded', () => {
     const durationSlider = document.getElementById('duration9');
+    const info = document.getElementById('info9');
+    
     document.getElementById('duration9Val').textContent = durationSlider.value;
     durationSlider.oninput = () => document.getElementById('duration9Val').textContent = durationSlider.value;
-    
-    const info = document.getElementById('info9');
-    let whiteNoise = null;
     
     document.getElementById('genPinkNoise').onclick = () => {
         const duration = parseFloat(durationSlider.value);
         currentSamples = generatePinkNoise(duration, 44100);
-        whiteNoise = generateWhiteNoise(duration, 44100);
+        whiteSamples = generateWhiteNoise(duration, 44100);
         
-        plotSignal(currentSamples, 'pinkPlot', '#FF69B4');
-        plotSpectrumComparison(currentSamples, whiteNoise, 'pinkSpectrum', 44100);
+        plotSignal(currentSamples, 'pinkPlot', '#ff69b4');
+        plotSpectrumComparison(currentSamples, whiteSamples, 'pinkSpectrum', 44100);
         
-        info.innerHTML = `🩷 Розовый шум: ${duration} секунд<br>📊 Спектр спадает как 1/f (наклон -3 дБ/октаву)<br>🎵 Звучит более "тепло", чем белый шум`;
+        info.innerHTML = `🩷 Розовый шум: ${duration} секунд<br>📊 Спектр спадает как 1/f (наклон -3 дБ/октаву)<br>Серый - белый шум (плоский), розовый - розовый шум (спадающий)`;
     };
     
     document.getElementById('comparePinkWhite').onclick = () => {
-        if (!currentSamples || !whiteNoise) {
+        if (!currentSamples || !whiteSamples) {
             info.innerHTML = '⚠️ Сначала сгенерируйте розовый шум!';
             return;
         }
-        plotSpectrumComparison(currentSamples, whiteNoise, 'pinkSpectrum', 44100);
+        plotSpectrumComparison(currentSamples, whiteSamples, 'pinkSpectrum', 44100);
         info.innerHTML = '📊 Сравнение: розовый шум (розовый) спадает как 1/f, белый шум (серый) - плоский';
     };
     
     document.getElementById('playPink').onclick = () => {
-        if (currentSamples) playSignal(currentSamples, 44100);
-        else info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        if (currentSamples) {
+            playSignal(currentSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение розового шума...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
     };
     
     document.getElementById('playWhiteCompare').onclick = () => {
-        if (whiteNoise) playSignal(whiteNoise, 44100);
-        else info.innerHTML = '⚠️ Сначала сгенерируйте розовый шум (белый создастся автоматически)!';
+        if (whiteSamples) {
+            playSignal(whiteSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение белого шума (для сравнения)...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала сгенерируйте розовый шум!';
+        }
     };
     
     document.getElementById('stopPink').onclick = () => {
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
+            info.innerHTML += `<br>⏹️ Остановлено`;
         }
     };
     
     // Инициализация
     currentSamples = generatePinkNoise(2, 44100);
-    whiteNoise = generateWhiteNoise(2, 44100);
-    plotSignal(currentSamples, 'pinkPlot', '#FF69B4');
-    plotSpectrumComparison(currentSamples, whiteNoise, 'pinkSpectrum', 44100);
-    info.innerHTML = 'Розовый шум. Пунктир - теоретический закон 1/f. Серый - белый шум для сравнения';
+    whiteSamples = generateWhiteNoise(2, 44100);
+    plotSignal(currentSamples, 'pinkPlot', '#ff69b4');
+    plotSpectrumComparison(currentSamples, whiteSamples, 'pinkSpectrum', 44100);
+    info.innerHTML = '🩷 Розовый шум. Пунктир - теоретический закон 1/f. Серый - белый шум для сравнения';
 });
