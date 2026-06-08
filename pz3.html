@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №3 - Работа с WAV файлами</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">🎚️ ПЗ №3: Работа с WAV файлами</h1>
+        
+        <div class="control-group">
+            <h3>Загрузка аудиофайлов</h3>
+            <input type="file" id="file1" accept=".wav,.mp3">
+            <input type="file" id="file2" accept=".wav,.mp3">
+            <button id="loadFiles">Загрузить и смешать</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>Микширование</h3>
+            <label>Баланс файла 1:</label>
+            <input type="range" id="mix1" min="0" max="1" value="0.5" step="0.05">
+            <span id="mix1Val">0.5</span>
+            <label>Баланс файла 2:</label>
+            <input type="range" id="mix2" min="0" max="1" value="0.5" step="0.05">
+            <span id="mix2Val">0.5</span>
+            <button id="applyMix">Применить микс</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>Изменение скорости (Stretch)</h3>
+            <label>Фактор скорости:</label>
+            <input type="range" id="stretchFactor" min="0.5" max="2" value="1" step="0.05">
+            <span id="stretchVal">1.0</span>
+            <button id="applyStretch">Замедлить/Ускорить</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="signalPlot" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="spectrumPlot" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Прослушивание</h3>
+            <button id="playSound">▶ Прослушать</button>
+            <button id="stopSound">⏹️ Остановить</button>
+        </div>
+        
+        <div id="info3" style="background:#ffe0e8; padding:10px; border-radius:10px; margin-top:10px;">
+            Загрузите два аудиофайла для микширования
+        </div>
+    </div>
+    <script src="pz3.js"></script>
+</body>
+</html>
