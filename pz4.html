@@ -12,7 +12,7 @@
         <h1 class="section-title">📐 ПЗ №4: Треугольный сигнал и DC-компонента</h1>
         
         <div class="control-group">
-            <h3>Параметры треугольного сигнала</h3>
+            <h3>📐 ГЕНЕРАЦИЯ ТРЕУГОЛЬНОГО СИГНАЛА</h3>
             <label>Частота (Гц):</label>
             <input type="range" id="freq4" min="100" max="1000" value="440" step="10">
             <span id="freq4Val">440</span> Гц<br><br>
@@ -29,8 +29,14 @@
             <button id="addDC">Добавить DC-компоненту</button>
         </div>
         
+        <div class="control-group">
+            <h3>📁 ЗАГРУЗИТЕ СВОЙ WAV ФАЙЛ ДЛЯ СРАВНЕНИЯ</h3>
+            <input type="file" id="uploadWav4" accept=".wav,.mp3,.ogg">
+            <button id="loadWav4">📥 Загрузить и сравнить спектр</button>
+        </div>
+        
         <div class="plot-container">
-            <canvas id="trianglePlot" width="800" height="250"></canvas>
+            <canvas id="trianglePlot" width="800" height="200"></canvas>
         </div>
         
         <div class="plot-container">
@@ -38,15 +44,15 @@
         </div>
         
         <div class="control-group">
-            <h3>Создание WAV файлов</h3>
-            <button id="createWav5sec">Создать WAV (0.5 сек)</button>
-            <button id="createWav30sec">Создать WAV (30 сек)</button>
-            <button id="playTriangle">▶ Прослушать</button>
+            <h3>🎵 ПРОСЛУШИВАНИЕ</h3>
+            <button id="playTriangle">▶ Прослушать треугольный</button>
+            <button id="playUploaded4">▶ Прослушать загруженный</button>
             <button id="stopTriangle">⏹️ Остановить</button>
+            <button id="saveWav4">💾 Сохранить как WAV (0.5 сек)</button>
         </div>
         
         <div class="info-panel" id="info4">
-            📐 Треугольный сигнал содержит только нечётные гармоники с амплитудой 1/n²
+            📐 Треугольный сигнал. Загрузите свой WAV файл для сравнения спектров
         </div>
     </div>
     <script src="pz4.js"></script>
