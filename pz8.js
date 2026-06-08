@@ -1,7 +1,9 @@
-// ПЗ №8: Броуновский шум
+// ПЗ №8: Броуновский шум + загрузка аудиофайлов
 let audioContext = null;
 let currentSource = null;
-let currentSamples = null;
+let brownNoiseSamples = null;
+let uploadedSamples8 = null;
+let uploadedRate8 = 44100;
 
 function initAudio() {
     if (!audioContext) {
@@ -12,6 +14,7 @@ function initAudio() {
     }
 }
 
+// Генерация броуновского шума (интегрированный белый шум)
 function generateBrownNoise(duration, sampleRate = 44100) {
     const numSamples = duration * sampleRate;
     const whiteNoise = new Array(numSamples);
@@ -38,8 +41,33 @@ function generateBrownNoise(duration, sampleRate = 44100) {
     return brownNoise;
 }
 
+// Загрузка аудиофайла
+function loadAudioFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const arrayBuffer = e.target.result;
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const samples = audioBuffer.getChannelData(0);
+                resolve({
+                    samples: Array.from(samples),
+                    rate: audioBuffer.sampleRate,
+                    name: file.name,
+                    duration: audioBuffer.duration
+                });
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Вычисление спектра
 function computeSpectrum(samples, sampleRate) {
-    const n = Math.min(samples.length, 8192);
+    const n = Math.min(samples.length, 16384);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -58,6 +86,7 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
+// Построение графика сигнала
 function plotSignal(samples, canvasId, color = '#d4728a') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -110,11 +139,14 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     ctx.stroke();
 }
 
-function plotSpectrum(samples, canvasId, sampleRate) {
+// Построение спектра с теоретической кривой
+function plotSpectrumWithTheory(brownSamples, uploadedSamples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
-    const { freqs, spectrum } = computeSpectrum(samples, sampleRate);
+    const { freqs, spectrum: brownSpec } = computeSpectrum(brownSamples, sampleRate);
+    const { spectrum: upSpec } = uploadedSamples ? computeSpectrum(uploadedSamples, sampleRate) : { spectrum: null };
+    
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -124,7 +156,7 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
     
-    // Теоретическая линия 1/f²
+    // Теоретическая линия 1/f² (красная пунктирная)
     ctx.beginPath();
     ctx.strokeStyle = '#ff6666';
     ctx.lineWidth = 1.5;
@@ -142,7 +174,7 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.stroke();
     ctx.setLineDash([]);
     
-    // Реальный спектр
+    // Спектр броуновского шума (розовый)
     ctx.beginPath();
     ctx.strokeStyle = '#d4728a';
     ctx.lineWidth = 2;
@@ -151,8 +183,8 @@ function plotSpectrum(samples, canvasId, sampleRate) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
-        if (idx < spectrum.length && idx > 10) {
-            let y = height - spectrum[idx] * height * 3;
+        if (idx < brownSpec.length && idx > 10) {
+            let y = height - brownSpec[idx] * height * 3;
             y = Math.max(0, Math.min(height, y));
             if (x === 10) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
@@ -160,21 +192,46 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     }
     ctx.stroke();
     
+    // Спектр загруженного файла (желтый)
+    if (upSpec) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#ffaa44';
+        ctx.lineWidth = 1.5;
+        
+        for (let x = 10; x < width; x++) {
+            const freq = (x / width) * maxFreq;
+            let idx = Math.floor(freq / maxFreq * upSpec.length);
+            idx = Math.min(idx, upSpec.length - 1);
+            if (idx > 10 && idx < upSpec.length) {
+                let y = height - upSpec[idx] * height * 3;
+                y = Math.max(0, Math.min(height, y));
+                if (x === 10) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
+    
     // Легенда
     ctx.font = '10px monospace';
     ctx.fillStyle = '#ff6666';
-    ctx.fillText('~ 1/f² (теория)', width - 130, 30);
+    ctx.fillText('~ 1/f² (теория)', width - 150, 30);
     ctx.fillStyle = '#d4728a';
-    ctx.fillText('Реальный спектр', width - 130, 50);
+    ctx.fillText('Броуновский шум', width - 150, 50);
+    if (upSpec) {
+        ctx.fillStyle = '#ffaa44';
+        ctx.fillText('Загруженный файл', width - 150, 70);
+    }
 }
 
-function playSignal(samples, sampleRate) {
+// Прослушивание
+function playSignal(samples, rate) {
     initAudio();
     if (currentSource) {
         try { currentSource.stop(); } catch(e) {}
     }
     
-    const buffer = audioContext.createBuffer(1, samples.length, sampleRate);
+    const buffer = audioContext.createBuffer(1, samples.length, rate);
     buffer.copyToChannel(new Float32Array(samples), 0);
     
     currentSource = audioContext.createBufferSource();
@@ -192,19 +249,52 @@ document.addEventListener('DOMContentLoaded', () => {
     
     document.getElementById('genBrownNoise').onclick = () => {
         const duration = parseFloat(durationSlider.value);
-        currentSamples = generateBrownNoise(duration, 44100);
-        plotSignal(currentSamples, 'brownPlot', '#d4728a');
-        plotSpectrum(currentSamples, 'brownSpectrum', 44100);
+        brownNoiseSamples = generateBrownNoise(duration, 44100);
+        plotSignal(brownNoiseSamples, 'brownPlot', '#d4728a');
+        plotSpectrumWithTheory(brownNoiseSamples, uploadedSamples8, 'brownSpectrum', 44100);
         
-        info.innerHTML = `🌊 Броуновский шум: ${duration} секунд<br>📊 Спектр спадает как 1/f² (наклон -6 дБ/октаву)<br>Красная линия - теоретический закон, розовая - реальный спектр`;
+        info.innerHTML = `🌊 Броуновский шум: ${duration} секунд<br>📊 Спектр спадает как 1/f² (наклон -6 дБ/октаву)<br>🔴 Красная линия - теоретический закон, 🟣 Розовая - реальный спектр<br>Загрузите свой файл для сравнения (желтая линия)`;
+    };
+    
+    document.getElementById('loadWav8').onclick = async () => {
+        const fileInput = document.getElementById('uploadWav8');
+        if (!fileInput.files[0]) {
+            info.innerHTML = '⚠️ Выберите аудиофайл!';
+            return;
+        }
+        
+        initAudio();
+        info.innerHTML = '⏳ Загрузка файла...';
+        
+        try {
+            const data = await loadAudioFile(fileInput.files[0]);
+            uploadedSamples8 = data.samples;
+            uploadedRate8 = data.rate;
+            
+            if (brownNoiseSamples) {
+                plotSpectrumWithTheory(brownNoiseSamples, uploadedSamples8, 'brownSpectrum', 44100);
+            }
+            info.innerHTML = `✅ Файл "${data.name}" загружен!<br>📊 Длительность: ${data.duration.toFixed(2)} сек<br>🟡 Желтый спектр - ваш файл, розовый - броуновский шум`;
+        } catch (err) {
+            info.innerHTML = `❌ Ошибка: ${err.message}`;
+        }
     };
     
     document.getElementById('playBrown').onclick = () => {
-        if (currentSamples) {
-            playSignal(currentSamples, 44100);
-            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        if (brownNoiseSamples) {
+            playSignal(brownNoiseSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение броуновского шума...`;
         } else {
             info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
+    };
+    
+    document.getElementById('playUploaded8').onclick = () => {
+        if (uploadedSamples8) {
+            playSignal(uploadedSamples8, uploadedRate8);
+            info.innerHTML += `<br>🎵 Воспроизведение загруженного файла...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала загрузите файл!';
         }
     };
     
@@ -217,8 +307,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // Инициализация
-    currentSamples = generateBrownNoise(2, 44100);
-    plotSignal(currentSamples, 'brownPlot', '#d4728a');
-    plotSpectrum(currentSamples, 'brownSpectrum', 44100);
-    info.innerHTML = '🌊 Броуновский шум. Пунктирная линия - теоретический закон 1/f²';
+    brownNoiseSamples = generateBrownNoise(2, 44100);
+    plotSignal(brownNoiseSamples, 'brownPlot', '#d4728a');
+    plotSpectrumWithTheory(brownNoiseSamples, null, 'brownSpectrum', 44100);
+    info.innerHTML = '🌊 Броуновский шум. Красная линия - теоретический закон 1/f². Загрузите свой файл для сравнения';
 });
