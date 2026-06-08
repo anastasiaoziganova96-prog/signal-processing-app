@@ -12,13 +12,19 @@
         <h1 class="section-title">🩷 ПЗ №9: Розовый шум (1/f)</h1>
         
         <div class="control-group">
-            <h3>Параметры</h3>
+            <h3>🎛️ ГЕНЕРАЦИЯ РОЗОВОГО ШУМА</h3>
             <label>Длительность (сек):</label>
             <input type="range" id="duration9" min="0.5" max="5" value="2" step="0.1">
             <span id="duration9Val">2.0</span> с<br><br>
             
-            <button id="genPinkNoise">Сгенерировать розовый шум</button>
-            <button id="comparePinkWhite">Сравнить с белым шумом</button>
+            <button id="genPinkNoise">🩷 Сгенерировать розовый шум</button>
+            <button id="comparePinkWhite">📊 Сравнить с белым шумом</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>📁 ЗАГРУЗИТЕ АУДИОФАЙЛ ДЛЯ СРАВНЕНИЯ</h3>
+            <input type="file" id="uploadWav9" accept=".wav,.mp3,.ogg">
+            <button id="loadWav9">📥 Загрузить и сравнить спектры</button>
         </div>
         
         <div class="plot-container">
@@ -30,14 +36,15 @@
         </div>
         
         <div class="control-group">
-            <h3>Прослушивание</h3>
+            <h3>🎵 ПРОСЛУШИВАНИЕ</h3>
             <button id="playPink">▶ Розовый шум</button>
             <button id="playWhiteCompare">▶ Белый шум (для сравнения)</button>
+            <button id="playUploaded9">▶ Загруженный файл</button>
             <button id="stopPink">⏹️ Остановить</button>
         </div>
         
         <div class="info-panel" id="info9">
-            🩷 Розовый шум имеет спектр ~ 1/f. Звучит более "естественно", чем белый шум
+            🩷 Розовый шум имеет спектр ~ 1/f. Загрузите свой аудиофайл для сравнения.
         </div>
     </div>
     <script src="pz9.js"></script>
