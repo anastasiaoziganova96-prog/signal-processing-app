@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №4 - Треугольный сигнал</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">📐 ПЗ №4: Треугольный сигнал и DC-компонента</h1>
+        
+        <div class="control-group">
+            <h3>Параметры треугольного сигнала</h3>
+            <label>Частота (Гц):</label>
+            <input type="range" id="freq4" min="100" max="1000" value="440" step="10">
+            <span id="freq4Val">440</span> Гц<br><br>
+            
+            <label>Амплитуда:</label>
+            <input type="range" id="amp4" min="0" max="1" value="1" step="0.05">
+            <span id="amp4Val">1.0</span><br><br>
+            
+            <label>DC-компонента (смещение):</label>
+            <input type="range" id="dc4" min="-0.5" max="0.5" value="0" step="0.01">
+            <span id="dc4Val">0</span><br><br>
+            
+            <button id="genTriangle">Сгенерировать треугольный сигнал</button>
+            <button id="addDC">Добавить DC-компоненту</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="trianglePlot" width="800" height="250"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="triangleSpectrum" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Создание WAV файлов</h3>
+            <button id="createWav5sec">Создать WAV (0.5 сек)</button>
+            <button id="createWav30sec">Создать WAV (30 сек)</button>
+            <button id="playTriangle">▶ Прослушать</button>
+            <button id="stopTriangle">⏹️ Остановить</button>
+        </div>
+        
+        <div id="info4" style="background:#ffe0e8; padding:10px; border-radius:10px; margin-top:10px;">
+            Треугольный сигнал содержит только нечётные гармоники с амплитудой 1/n²
+        </div>
+    </div>
+    <script src="pz4.js"></script>
+</body>
+</html>
