@@ -14,7 +14,6 @@ function initAudio() {
     }
 }
 
-// Генерация суммы двух синусоид
 function generateSignal(freq1, freq2, amp1, amp2, duration = 0.5) {
     const samples = [];
     const dt = 1 / SAMPLE_RATE;
@@ -29,14 +28,12 @@ function generateSignal(freq1, freq2, amp1, amp2, duration = 0.5) {
     return samples;
 }
 
-// Нормализация (масштабирование до [-1, 1])
 function normalize(samples) {
     const maxAmp = Math.max(...samples.map(Math.abs));
     if (maxAmp === 0) return samples;
     return samples.map(s => s / maxAmp);
 }
 
-// Аподизация (окно Хэмминга)
 function apodize(samples) {
     const n = samples.length;
     const result = new Array(n);
@@ -47,9 +44,8 @@ function apodize(samples) {
     return result;
 }
 
-// Low-pass фильтр (простой БИХ-фильтр)
-function lowPassFilter(samples, cutoffFreq, sampleRate) {
-    const dt = 1 / sampleRate;
+function lowPassFilter(samples, cutoffFreq) {
+    const dt = 1 / SAMPLE_RATE;
     const RC = 1 / (2 * Math.PI * cutoffFreq);
     const alpha = dt / (RC + dt);
     
@@ -62,9 +58,8 @@ function lowPassFilter(samples, cutoffFreq, sampleRate) {
     return filtered;
 }
 
-// Вычисление спектра (БПФ)
-function computeSpectrum(samples, sampleRate) {
-    const n = samples.length;
+function computeSpectrum(samples) {
+    const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -76,13 +71,12 @@ function computeSpectrum(samples, sampleRate) {
             imag += samples[i] * Math.sin(angle);
         }
         spectrum[k] = Math.sqrt(real*real + imag*imag) / n;
-        freqs[k] = k * sampleRate / n;
+        freqs[k] = k * SAMPLE_RATE / n;
     }
     return { freqs, spectrum };
 }
 
-// Построение графика сигнала
-function plotSignal(samples, canvasId, color = '#d4728a') {
+function plotSignal(samples, canvasId, color = '#00ff88') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
@@ -93,20 +87,26 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     const displaySamples = samples.slice(0, 800);
     const step = displaySamples.length / width;
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
     
-    // Сетка
-    ctx.strokeStyle = '#f0c0d0';
+    ctx.strokeStyle = '#444455';
     ctx.lineWidth = 0.5;
     for (let i = -2; i <= 2; i++) {
-        const y = height / 2 - i * height / 4;
+        const y = height / 2 + i * height / 4;
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(width, y);
         ctx.stroke();
     }
     
-    // Сигнал
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
+    ctx.stroke();
+    
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
@@ -128,29 +128,29 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     ctx.stroke();
 }
 
-// Построение спектра
-function plotSpectrum(samples, canvasId, sampleRate, title) {
+function plotSpectrum(samples, canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
-    const { freqs, spectrum } = computeSpectrum(samples, sampleRate);
+    const { freqs, spectrum } = computeSpectrum(samples);
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
     
-    const maxFreq = 3000;
-    ctx.clearRect(0, 0, width, height);
+    const maxFreq = Math.min(5000, freqs[freqs.length-1]);
     
-    // Заливка
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
     ctx.beginPath();
-    ctx.fillStyle = '#ffe0e8';
+    ctx.fillStyle = '#00ff8833';
     
     for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
         if (idx < spectrum.length) {
-            const y = height - spectrum[idx] * height * 1.5;
+            const y = height - spectrum[idx] * height * 2;
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
@@ -159,9 +159,8 @@ function plotSpectrum(samples, canvasId, sampleRate, title) {
     ctx.lineTo(0, height);
     ctx.fill();
     
-    // Линия спектра
     ctx.beginPath();
-    ctx.strokeStyle = '#e8a0b5';
+    ctx.strokeStyle = '#ffaa44';
     ctx.lineWidth = 1.5;
     
     for (let x = 0; x < width; x++) {
@@ -169,7 +168,7 @@ function plotSpectrum(samples, canvasId, sampleRate, title) {
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
         if (idx < spectrum.length) {
-            const y = height - spectrum[idx] * height * 1.5;
+            const y = height - spectrum[idx] * height * 2;
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
@@ -177,7 +176,6 @@ function plotSpectrum(samples, canvasId, sampleRate, title) {
     ctx.stroke();
 }
 
-// Прослушивание
 function playSignal(samples, sampleRate) {
     initAudio();
     if (currentSource) {
@@ -193,19 +191,13 @@ function playSignal(samples, sampleRate) {
     currentSource.start();
 }
 
-// Обновление информации
-function updateInfo(text) {
-    const infoDiv = document.getElementById('info');
-    infoDiv.innerHTML = text;
-}
-
 document.addEventListener('DOMContentLoaded', () => {
-    // Слайдеры
     const freq1 = document.getElementById('freq1');
     const freq2 = document.getElementById('freq2');
     const amp1 = document.getElementById('amp1');
     const amp2 = document.getElementById('amp2');
     const cutoff = document.getElementById('cutoff');
+    const info = document.getElementById('info2');
     
     document.getElementById('freq1Val').textContent = freq1.value;
     document.getElementById('freq2Val').textContent = freq2.value;
@@ -219,77 +211,81 @@ document.addEventListener('DOMContentLoaded', () => {
     amp2.oninput = () => document.getElementById('amp2Val').textContent = amp2.value;
     cutoff.oninput = () => document.getElementById('cutoffVal').textContent = cutoff.value;
     
-    // Генерация
     document.getElementById('genSignal').onclick = () => {
         currentSamples = generateSignal(
             parseFloat(freq1.value), parseFloat(freq2.value),
             parseFloat(amp1.value), parseFloat(amp2.value)
         );
         processedSamples = [...currentSamples];
-        plotSignal(currentSamples, 'signalPlot');
-        plotSpectrum(currentSamples, 'spectrumPlot', SAMPLE_RATE);
-        updateInfo(`✅ Сигнал сгенерирован: ${freq1.value} Гц + ${freq2.value} Гц`);
+        plotSignal(currentSamples, 'signalPlot', '#00ff88');
+        plotSpectrum(currentSamples, 'spectrumPlot');
+        info.innerHTML = `✅ Сигнал сгенерирован: ${freq1.value} Гц + ${freq2.value} Гц`;
     };
     
-    // Нормализация
     document.getElementById('applyNormalize').onclick = () => {
         if (!currentSamples) {
-            updateInfo('⚠️ Сначала сгенерируйте сигнал!');
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
             return;
         }
         processedSamples = normalize(currentSamples);
-        plotSignal(processedSamples, 'signalPlot', '#a0d4a0');
-        plotSpectrum(processedSamples, 'spectrumPlot', SAMPLE_RATE);
-        updateInfo('📊 Применена нормализация: амплитуда масштабирована до 1.0');
+        plotSignal(processedSamples, 'signalPlot', '#88ff88');
+        plotSpectrum(processedSamples, 'spectrumPlot');
+        info.innerHTML = '📊 Нормализация: амплитуда масштабирована до 1.0';
     };
     
-    // Аподизация
     document.getElementById('applyApodize').onclick = () => {
         if (!currentSamples) {
-            updateInfo('⚠️ Сначала сгенерируйте сигнал!');
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
             return;
         }
         processedSamples = apodize(currentSamples);
-        plotSignal(processedSamples, 'signalPlot', '#c0a0d4');
-        plotSpectrum(processedSamples, 'spectrumPlot', SAMPLE_RATE);
-        updateInfo('📉 Применена аподизация (окно Хэмминга): края сигнала сглажены');
+        plotSignal(processedSamples, 'signalPlot', '#ff88ff');
+        plotSpectrum(processedSamples, 'spectrumPlot');
+        info.innerHTML = '📉 Аподизация: края сигнала сглажены окном Хэмминга';
     };
     
-    // Low-pass фильтр
     document.getElementById('applyLowpass').onclick = () => {
         if (!currentSamples) {
-            updateInfo('⚠️ Сначала сгенерируйте сигнал!');
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
             return;
         }
         const cutoffFreq = parseFloat(cutoff.value);
-        processedSamples = lowPassFilter(currentSamples, cutoffFreq, SAMPLE_RATE);
-        plotSignal(processedSamples, 'signalPlot', '#d4a0a0');
-        plotSpectrum(processedSamples, 'spectrumPlot', SAMPLE_RATE);
-        updateInfo(`🔽 Применён low-pass фильтр (частота среза = ${cutoffFreq} Гц)<br>Высокие частоты подавлены`);
+        processedSamples = lowPassFilter(currentSamples, cutoffFreq);
+        plotSignal(processedSamples, 'signalPlot', '#ff8888');
+        plotSpectrum(processedSamples, 'spectrumPlot');
+        info.innerHTML = `🔽 Low-pass фильтр: частота среза ${cutoffFreq} Гц`;
     };
     
-    // Прослушивание
     document.getElementById('playOriginal').onclick = () => {
-        if (currentSamples) playSignal(currentSamples, SAMPLE_RATE);
-        else updateInfo('⚠️ Нет сигнала для воспроизведения');
+        if (currentSamples) {
+            playSignal(currentSamples, SAMPLE_RATE);
+            info.innerHTML += `<br>🎵 Воспроизведение исходного сигнала`;
+        } else {
+            info.innerHTML = '⚠️ Нет сигнала!';
+        }
     };
     
     document.getElementById('playProcessed').onclick = () => {
-        if (processedSamples) playSignal(processedSamples, SAMPLE_RATE);
-        else updateInfo('⚠️ Нет обработанного сигнала');
+        if (processedSamples) {
+            playSignal(processedSamples, SAMPLE_RATE);
+            info.innerHTML += `<br>🎵 Воспроизведение обработанного сигнала`;
+        } else {
+            info.innerHTML = '⚠️ Нет обработанного сигнала!';
+        }
     };
     
     document.getElementById('stopAudio').onclick = () => {
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
+            info.innerHTML += `<br>⏹️ Остановлено`;
         }
     };
     
     // Инициализация
     currentSamples = generateSignal(440, 880, 1.0, 0.7);
     processedSamples = [...currentSamples];
-    plotSignal(currentSamples, 'signalPlot');
-    plotSpectrum(currentSamples, 'spectrumPlot', SAMPLE_RATE);
-    updateInfo('🎵 Готово! Нажмите кнопки для обработки сигнала');
+    plotSignal(currentSamples, 'signalPlot', '#00ff88');
+    plotSpectrum(currentSamples, 'spectrumPlot');
+    info.innerHTML = '⚡ Готово! Сигнал 440+880 Гц. Применяйте обработку';
 });
