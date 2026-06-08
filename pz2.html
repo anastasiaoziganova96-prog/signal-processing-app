@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №2 - Нормализация и фильтрация</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">⚙️ ПЗ №2: Нормализация, аподизация и low-pass фильтр</h1>
+        
+        <div class="control-group">
+            <h3>Параметры сигнала</h3>
+            <label>Частота 1 (Гц):</label>
+            <input type="range" id="freq1" min="100" max="2000" value="440" step="10">
+            <span id="freq1Val">440</span> Гц<br><br>
+            
+            <label>Частота 2 (Гц):</label>
+            <input type="range" id="freq2" min="100" max="2000" value="880" step="10">
+            <span id="freq2Val">880</span> Гц<br><br>
+            
+            <label>Амплитуда 1:</label>
+            <input type="range" id="amp1" min="0" max="1" value="1" step="0.05">
+            <span id="amp1Val">1.0</span><br><br>
+            
+            <label>Амплитуда 2:</label>
+            <input type="range" id="amp2" min="0" max="1" value="0.7" step="0.05">
+            <span id="amp2Val">0.7</span><br><br>
+            
+            <button id="genSignal">Сгенерировать сигнал (сумма двух частот)</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>Обработка сигнала</h3>
+            <button id="applyNormalize">Нормализация (amp → 1.0)</button>
+            <button id="applyApodize">Аподизация (Hamming window)</button>
+            <label>Low-pass фильтр (частота среза Гц):</label>
+            <input type="range" id="cutoff" min="100" max="2000" value="1000" step="50">
+            <span id="cutoffVal">1000</span> Гц
+            <button id="applyLowpass">Применить low-pass</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="signalPlot" width="800" height="250"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="spectrumPlot" width="800" height="250"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Прослушивание</h3>
+            <button id="playOriginal">▶ Исходный</button>
+            <button id="playProcessed">▶ Обработанный</button>
+            <button id="stopAudio">⏹️ Остановить</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>Информация</h3>
+            <div id="info" style="background:#ffe0e8; padding:10px; border-radius:10px;">
+                Нажмите кнопки для обработки сигнала
+            </div>
+        </div>
+    </div>
+    <script src="pz2.js"></script>
+</body>
+</html>
