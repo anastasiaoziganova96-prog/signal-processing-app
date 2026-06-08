@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №8 - Броуновский шум</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">🌊 ПЗ №8: Броуновский шум (1/f²)</h1>
+        
+        <div class="control-group">
+            <h3>Параметры</h3>
+            <label>Длительность (сек):</label>
+            <input type="range" id="duration8" min="0.5" max="5" value="2" step="0.1">
+            <span id="duration8Val">2.0</span> с<br><br>
+            
+            <button id="genBrownNoise">Сгенерировать броуновский шум</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="brownPlot" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="brownSpectrum" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Прослушивание</h3>
+            <button id="playBrown">▶ Прослушать</button>
+            <button id="stopBrown">⏹️ Остановить</button>
+        </div>
+        
+        <div id="info8" style="background:#ffe0e8; padding:10px; border-radius:10px;">
+            Броуновский шум = интегрированный белый шум. Спектр ~ 1/f²
+        </div>
+    </div>
+    <script src="pz8.js"></script>
+</body>
+</html>
