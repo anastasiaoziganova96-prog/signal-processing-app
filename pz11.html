@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №11 - Пуассоновский шум</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">⚛️ ПЗ №11: Пуассоновский шум (счетчик Гейгера)</h1>
+        
+        <div class="control-group">
+            <h3>Параметры</h3>
+            <label>Интенсивность λ (среднее число частиц):</label>
+            <input type="range" id="lambda" min="0.001" max="100" value="0.01" step="0.001">
+            <span id="lambdaVal">0.010</span><br>
+            <small>λ=0.001-0.01: отдельные щелчки | λ=10-100: непрерывный шум</small><br><br>
+            
+            <label>Длительность (сек):</label>
+            <input type="range" id="duration11" min="1" max="5" value="2" step="0.5">
+            <span id="duration11Val">2.0</span> с<br><br>
+            
+            <button id="genPoisson">Сгенерировать пуассоновский шум</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="poissonPlot" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="poissonHistogram" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="poissonSpectrum" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Прослушивание</h3>
+            <button id="playPoisson">▶ Прослушать</button>
+            <button id="stopPoisson">⏹️ Остановить</button>
+        </div>
+        
+        <div id="info11" style="background:#ffe0e8; padding:10px; border-radius:10px;">
+            Пуассоновский шум имитирует счётчик Гейгера. При малых λ слышны отдельные щелчки
+        </div>
+    </div>
+    <script src="pz11.js"></script>
+</body>
+</html>
