@@ -12,7 +12,6 @@ function initAudio() {
     }
 }
 
-// Генерация пилообразного сигнала
 function generateSawtooth(freq, amp, width = 1, duration = 0.5, sampleRate = 44100) {
     const samples = [];
     const dt = 1 / sampleRate;
@@ -20,12 +19,10 @@ function generateSawtooth(freq, amp, width = 1, duration = 0.5, sampleRate = 441
     
     for (let i = 0; i < numSamples; i++) {
         const t = i * dt;
-        // Пилообразный сигнал
         let value = 2 * ((freq * t) % 1);
         if (value > 1) value = 2 - value;
         value = value * 2 - 1;
         
-        // Применяем ширину импульса
         if (width < 1) {
             const phase = (freq * t) % 1;
             if (phase < width) {
@@ -40,9 +37,8 @@ function generateSawtooth(freq, amp, width = 1, duration = 0.5, sampleRate = 441
     return samples;
 }
 
-// Вычисление спектра
 function computeSpectrum(samples, sampleRate) {
-    const n = samples.length;
+    const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -59,8 +55,7 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
-// Построение графика сигнала
-function plotSignal(samples, canvasId, color = '#d4728a') {
+function plotSignal(samples, canvasId, color = '#00ff88') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
@@ -71,18 +66,26 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     const displaySamples = samples.slice(0, 400);
     const step = displaySamples.length / width;
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
     
-    // Нулевая линия
-    ctx.beginPath();
-    ctx.strokeStyle = '#cccccc';
+    ctx.strokeStyle = '#444455';
     ctx.lineWidth = 0.5;
-    const zeroY = height / 2;
-    ctx.moveTo(0, zeroY);
-    ctx.lineTo(width, zeroY);
+    for (let i = -2; i <= 2; i++) {
+        const y = height / 2 + i * height / 4;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
     ctx.stroke();
     
-    // Сигнал
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 1.5;
@@ -104,7 +107,6 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     ctx.stroke();
 }
 
-// Построение спектра
 function plotSpectrum(samples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -115,9 +117,10 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     const height = canvas.height;
     
     const maxFreq = 8000;
-    ctx.clearRect(0, 0, width, height);
     
-    // Столбцы для гармоник
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
     const barWidth = 2;
     for (let x = 0; x < width; x += barWidth + 1) {
         const freq = (x / width) * maxFreq;
@@ -126,14 +129,13 @@ function plotSpectrum(samples, canvasId, sampleRate) {
         if (idx < spectrum.length && spectrum[idx] > 0.01) {
             const barHeight = spectrum[idx] * height * 1.5;
             if (barHeight > 1) {
-                ctx.fillStyle = '#e8a0b5';
+                ctx.fillStyle = '#ffaa44';
                 ctx.fillRect(x, height - barHeight, barWidth, barHeight);
             }
         }
     }
 }
 
-// Прослушивание
 function playSignal(samples, sampleRate) {
     initAudio();
     if (currentSource) {
@@ -153,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const freqSlider = document.getElementById('freq5');
     const ampSlider = document.getElementById('amp5');
     const widthSlider = document.getElementById('width5');
+    const info = document.getElementById('info5');
     
     document.getElementById('freq5Val').textContent = freqSlider.value;
     document.getElementById('amp5Val').textContent = ampSlider.value;
@@ -162,15 +165,13 @@ document.addEventListener('DOMContentLoaded', () => {
     ampSlider.oninput = () => document.getElementById('amp5Val').textContent = ampSlider.value;
     widthSlider.oninput = () => document.getElementById('width5Val').textContent = widthSlider.value;
     
-    const info = document.getElementById('info5');
-    
     document.getElementById('genSawtooth').onclick = () => {
         const freq = parseFloat(freqSlider.value);
         const amp = parseFloat(ampSlider.value);
         const width = parseFloat(widthSlider.value);
         
         currentSamples = generateSawtooth(freq, amp, width, 0.5, 44100);
-        plotSignal(currentSamples, 'sawtoothPlot');
+        plotSignal(currentSamples, 'sawtoothPlot', '#00ff88');
         plotSpectrum(currentSamples, 'sawtoothSpectrum', 44100);
         
         info.innerHTML = `🔺 Пилообразный сигнал: ${freq} Гц<br>Спектр содержит все гармоники: ${freq}, ${2*freq}, ${3*freq}... с амплитудой 1/n`;
@@ -180,20 +181,25 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     document.getElementById('playSawtooth').onclick = () => {
-        if (currentSamples) playSignal(currentSamples, 44100);
-        else info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        if (currentSamples) {
+            playSignal(currentSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
     };
     
     document.getElementById('stopSawtooth').onclick = () => {
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
+            info.innerHTML += `<br>⏹️ Остановлено`;
         }
     };
     
     // Инициализация
     currentSamples = generateSawtooth(1000, 1, 1, 0.5, 44100);
-    plotSignal(currentSamples, 'sawtoothPlot');
+    plotSignal(currentSamples, 'sawtoothPlot', '#00ff88');
     plotSpectrum(currentSamples, 'sawtoothSpectrum', 44100);
-    info.innerHTML = 'Пилообразный сигнал 1000 Гц. Все гармоники видны на спектре';
+    info.innerHTML = '🔺 Пилообразный сигнал 1000 Гц. Все гармоники видны на спектре';
 });
