@@ -12,7 +12,7 @@
         <h1 class="section-title">📊 ПЗ №10: Гауссов (нормальный) шум</h1>
         
         <div class="control-group">
-            <h3>Параметры</h3>
+            <h3>🎛️ ГЕНЕРАЦИЯ ГАУССОВА ШУМА</h3>
             <label>Длительность (сек):</label>
             <input type="range" id="duration10" min="0.5" max="5" value="2" step="0.1">
             <span id="duration10Val">2.0</span> с<br><br>
@@ -25,7 +25,14 @@
             <input type="range" id="var10" min="0.1" max="1" value="0.5" step="0.05">
             <span id="var10Val">0.5</span><br><br>
             
-            <button id="genGaussian">Сгенерировать гауссов шум</button>
+            <button id="genGaussian">📊 Сгенерировать гауссов шум</button>
+            <button id="compareNoises">📈 Сравнить гауссов, розовый, броуновский</button>
+        </div>
+        
+        <div class="control-group">
+            <h3>📁 ЗАГРУЗИТЕ АУДИОФАЙЛ ДЛЯ СРАВНЕНИЯ</h3>
+            <input type="file" id="uploadWav10" accept=".wav,.mp3,.ogg">
+            <button id="loadWav10">📥 Загрузить и сравнить спектры</button>
         </div>
         
         <div class="plot-container">
@@ -37,17 +44,21 @@
         </div>
         
         <div class="plot-container">
-            <canvas id="gaussianSpectrum" width="800" height="200"></canvas>
+            <canvas id="gaussianSpectrum" width="800" height="250"></canvas>
         </div>
         
         <div class="control-group">
-            <h3>Прослушивание</h3>
-            <button id="playGaussian">▶ Прослушать</button>
+            <h3>🎵 ПРОСЛУШИВАНИЕ</h3>
+            <button id="playGaussian">▶ Гауссов шум</button>
+            <button id="playPinkCompare">▶ Розовый шум</button>
+            <button id="playBrownCompare">▶ Броуновский шум</button>
+            <button id="playUploaded10">▶ Загруженный файл</button>
             <button id="stopGaussian">⏹️ Остановить</button>
         </div>
         
         <div class="info-panel" id="info10">
-            📊 Гауссов шум имеет нормальное распределение и плоский спектр
+            📊 Гауссов шум имеет нормальное распределение (колоколообразная гистограмма) и плоский спектр.<br>
+            Загрузите свой аудиофайл для сравнения.
         </div>
     </div>
     <script src="pz10.js"></script>
