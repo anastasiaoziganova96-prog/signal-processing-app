@@ -1,9 +1,9 @@
-// ПЗ №4: Треугольный сигнал и DC-компонента
+// ПЗ №4: Треугольный сигнал + загрузка WAV
 let audioContext = null;
 let currentSource = null;
-let currentSamples = null;
-let currentRate = 44100;
-let originalTriangle = null;
+let triangleSamples = null;
+let uploadedSamples4 = null;
+let uploadedRate4 = 44100;
 
 function initAudio() {
     if (!audioContext) {
@@ -21,7 +21,6 @@ function generateTriangle(freq, amp, duration = 0.5, sampleRate = 44100) {
     
     for (let i = 0; i < numSamples; i++) {
         const t = i * dt;
-        // Треугольный сигнал через арксинус
         let value = (2 / Math.PI) * Math.asin(Math.sin(2 * Math.PI * freq * t));
         samples.push(amp * value);
     }
@@ -30,6 +29,28 @@ function generateTriangle(freq, amp, duration = 0.5, sampleRate = 44100) {
 
 function addDC(samples, dcValue) {
     return samples.map(s => s + dcValue);
+}
+
+function loadAudioFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const arrayBuffer = e.target.result;
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const samples = audioBuffer.getChannelData(0);
+                resolve({
+                    samples: Array.from(samples),
+                    rate: audioBuffer.sampleRate,
+                    name: file.name
+                });
+            } catch (err) {
+                reject(err);
+            }
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+    });
 }
 
 function computeSpectrum(samples, sampleRate) {
@@ -102,11 +123,13 @@ function plotSignal(samples, canvasId, color = '#00ff88') {
     ctx.stroke();
 }
 
-function plotSpectrum(samples, canvasId, sampleRate) {
+function plotSpectrumComparison(triangleSamples, uploadedSamples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
-    const { freqs, spectrum } = computeSpectrum(samples, sampleRate);
+    const { freqs, spectrum: triSpec } = computeSpectrum(triangleSamples, sampleRate);
+    const { spectrum: upSpec } = uploadedSamples ? computeSpectrum(uploadedSamples, sampleRate) : { spectrum: null };
+    
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const height = canvas.height;
@@ -116,25 +139,49 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
     
-    // Столбцы для гармоник
-    const barWidth = 3;
-    for (let x = 0; x < width; x += barWidth + 1) {
+    // Спектр треугольного сигнала (зеленый)
+    ctx.beginPath();
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 1.5;
+    
+    for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
-        if (idx < spectrum.length && spectrum[idx] > 0.01) {
-            const barHeight = spectrum[idx] * height * 2;
-            if (barHeight > 1) {
-                ctx.fillStyle = '#ffaa44';
-                ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-            }
+        if (idx < triSpec.length) {
+            const y = height - triSpec[idx] * height * 2;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
         }
     }
+    ctx.stroke();
     
-    // DC компонента
-    if (spectrum[0] > 0.01) {
-        ctx.fillStyle = '#ff6666';
-        ctx.fillRect(0, height - spectrum[0] * height * 2, 5, spectrum[0] * height * 2);
+    // Спектр загруженного файла (желтый)
+    if (upSpec) {
+        ctx.beginPath();
+        ctx.strokeStyle = '#ffaa44';
+        ctx.lineWidth = 1.5;
+        
+        for (let x = 0; x < width; x++) {
+            const freq = (x / width) * maxFreq;
+            let idx = Math.floor(freq / maxFreq * upSpec.length);
+            idx = Math.min(idx, upSpec.length - 1);
+            if (idx > 10 && idx < upSpec.length) {
+                const y = height - upSpec[idx] * height * 2;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+        }
+        ctx.stroke();
+    }
+    
+    // Легенда
+    ctx.font = '10px monospace';
+    ctx.fillStyle = '#00ff88';
+    ctx.fillText('Треугольный сигнал', width - 150, 30);
+    if (upSpec) {
+        ctx.fillStyle = '#ffaa44';
+        ctx.fillText('Загруженный файл', width - 150, 50);
     }
 }
 
@@ -144,11 +191,7 @@ function downloadWav(samples, sampleRate, filename) {
     const int16Samples = samples.map(s => Math.max(-32768, Math.min(32767, Math.floor(s / maxAmp * 32767))));
     
     const numSamples = samples.length;
-    const numChannels = 1;
-    const byteRate = sampleRate * numChannels * 2;
-    const blockAlign = numChannels * 2;
-    const dataSize = numSamples * 2;
-    const buffer = new ArrayBuffer(44 + dataSize);
+    const buffer = new ArrayBuffer(44 + numSamples * 2);
     const view = new DataView(buffer);
     
     function writeString(offset, str) {
@@ -158,18 +201,18 @@ function downloadWav(samples, sampleRate, filename) {
     }
     
     writeString(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
+    view.setUint32(4, 36 + numSamples * 2, true);
     writeString(8, 'WAVE');
     writeString(12, 'fmt ');
     view.setUint32(16, 16, true);
     view.setUint16(20, 1, true);
-    view.setUint16(22, numChannels, true);
+    view.setUint16(22, 1, true);
     view.setUint32(24, sampleRate, true);
-    view.setUint32(28, byteRate, true);
-    view.setUint16(32, blockAlign, true);
+    view.setUint32(28, sampleRate * 2, true);
+    view.setUint16(32, 2, true);
     view.setUint16(34, 16, true);
     writeString(36, 'data');
-    view.setUint32(40, dataSize, true);
+    view.setUint32(40, numSamples * 2, true);
     
     let offset = 44;
     for (let i = 0; i < numSamples; i++) {
@@ -186,13 +229,13 @@ function downloadWav(samples, sampleRate, filename) {
     URL.revokeObjectURL(url);
 }
 
-function playSignal(samples, sampleRate) {
+function playSignal(samples, rate) {
     initAudio();
     if (currentSource) {
         try { currentSource.stop(); } catch(e) {}
     }
     
-    const buffer = audioContext.createBuffer(1, samples.length, sampleRate);
+    const buffer = audioContext.createBuffer(1, samples.length, rate);
     buffer.copyToChannel(new Float32Array(samples), 0);
     
     currentSource = audioContext.createBufferSource();
@@ -215,53 +258,69 @@ document.addEventListener('DOMContentLoaded', () => {
     ampSlider.oninput = () => document.getElementById('amp4Val').textContent = ampSlider.value;
     dcSlider.oninput = () => document.getElementById('dc4Val').textContent = dcSlider.value;
     
+    let originalTriangle = null;
+    
     document.getElementById('genTriangle').onclick = () => {
         const freq = parseFloat(freqSlider.value);
         const amp = parseFloat(ampSlider.value);
-        currentSamples = generateTriangle(freq, amp, 0.5, 44100);
-        originalTriangle = [...currentSamples];
-        plotSignal(currentSamples, 'trianglePlot', '#00ff88');
-        plotSpectrum(currentSamples, 'triangleSpectrum', 44100);
-        info.innerHTML = `📐 Треугольный сигнал: ${freq} Гц, амплитуда ${amp}<br>Спектр содержит нечётные гармоники: ${freq}, ${3*freq}, ${5*freq}...`;
+        triangleSamples = generateTriangle(freq, amp, 0.5, 44100);
+        originalTriangle = [...triangleSamples];
+        plotSignal(triangleSamples, 'trianglePlot', '#00ff88');
+        plotSpectrumComparison(triangleSamples, uploadedSamples4, 'triangleSpectrum', 44100);
+        info.innerHTML = `📐 Треугольный сигнал: ${freq} Гц<br>Спектр содержит нечётные гармоники: ${freq}, ${3*freq}, ${5*freq}...`;
     };
     
     document.getElementById('addDC').onclick = () => {
-        if (!currentSamples) {
+        if (!triangleSamples) {
             info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
             return;
         }
         const dc = parseFloat(dcSlider.value);
-        currentSamples = addDC(originalTriangle, dc);
-        plotSignal(currentSamples, 'trianglePlot', '#88ff88');
-        plotSpectrum(currentSamples, 'triangleSpectrum', 44100);
-        info.innerHTML = `⚡ Добавлена DC-компонента = ${dc}<br>На спектре появился пик на частоте 0 Гц (красный столбец)`;
+        triangleSamples = addDC(originalTriangle, dc);
+        plotSignal(triangleSamples, 'trianglePlot', '#88ff88');
+        plotSpectrumComparison(triangleSamples, uploadedSamples4, 'triangleSpectrum', 44100);
+        info.innerHTML = `⚡ Добавлена DC-компонента = ${dc}<br>На спектре появился пик на частоте 0 Гц`;
     };
     
-    document.getElementById('createWav5sec').onclick = () => {
-        const freq = parseFloat(freqSlider.value);
-        const amp = parseFloat(ampSlider.value);
-        const samples = generateTriangle(freq, amp, 0.5, 44100);
-        downloadWav(samples, 44100, 'triangle_05sec.wav');
-        info.innerHTML = `💾 Файл triangle_05sec.wav создан и скачан`;
-    };
-    
-    document.getElementById('createWav30sec').onclick = () => {
-        const freq = parseFloat(freqSlider.value);
-        const amp = parseFloat(ampSlider.value);
-        info.innerHTML = '⏳ Генерация 30 секунд... Подождите...';
-        setTimeout(() => {
-            const samples = generateTriangle(freq, amp, 30, 44100);
-            downloadWav(samples, 44100, 'triangle_30sec.wav');
-            info.innerHTML = `💾 Файл triangle_30sec.wav создан и скачан (30 секунд)`;
-        }, 100);
+    document.getElementById('loadWav4').onclick = async () => {
+        const fileInput = document.getElementById('uploadWav4');
+        if (!fileInput.files[0]) {
+            info.innerHTML = '⚠️ Выберите WAV файл!';
+            return;
+        }
+        
+        initAudio();
+        info.innerHTML = '⏳ Загрузка файла...';
+        
+        try {
+            const data = await loadAudioFile(fileInput.files[0]);
+            uploadedSamples4 = data.samples;
+            uploadedRate4 = data.rate;
+            
+            if (triangleSamples) {
+                plotSpectrumComparison(triangleSamples, uploadedSamples4, 'triangleSpectrum', 44100);
+            }
+            info.innerHTML = `✅ Файл "${data.name}" загружен!<br>📊 Длительность: ${(data.samples.length/data.rate).toFixed(2)} сек<br>🟡 Желтый спектр - ваш файл, зеленый - треугольный сигнал`;
+        } catch (err) {
+            info.innerHTML = `❌ Ошибка: ${err.message}`;
+        }
     };
     
     document.getElementById('playTriangle').onclick = () => {
-        if (currentSamples) {
-            playSignal(currentSamples, 44100);
-            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        if (triangleSamples) {
+            playSignal(triangleSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение треугольного сигнала...`;
         } else {
             info.innerHTML = '⚠️ Нет сигнала!';
+        }
+    };
+    
+    document.getElementById('playUploaded4').onclick = () => {
+        if (uploadedSamples4) {
+            playSignal(uploadedSamples4, uploadedRate4);
+            info.innerHTML += `<br>🎵 Воспроизведение загруженного файла...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала загрузите файл!';
         }
     };
     
@@ -273,10 +332,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
+    document.getElementById('saveWav4').onclick = () => {
+        const freq = parseFloat(freqSlider.value);
+        const amp = parseFloat(ampSlider.value);
+        const samples = generateTriangle(freq, amp, 0.5, 44100);
+        downloadWav(samples, 44100, 'triangle_signal.wav');
+        info.innerHTML = `💾 Файл triangle_signal.wav сохранен`;
+    };
+    
     // Инициализация
-    currentSamples = generateTriangle(440, 1, 0.5, 44100);
-    originalTriangle = [...currentSamples];
-    plotSignal(currentSamples, 'trianglePlot', '#00ff88');
-    plotSpectrum(currentSamples, 'triangleSpectrum', 44100);
-    info.innerHTML = '📐 Треугольный сигнал 440 Гц. Нажмите "Добавить DC-компоненту" чтобы увидеть эффект';
+    triangleSamples = generateTriangle(440, 1, 0.5, 44100);
+    originalTriangle = [...triangleSamples];
+    plotSignal(triangleSamples, 'trianglePlot', '#00ff88');
+    plotSpectrumComparison(triangleSamples, null, 'triangleSpectrum', 44100);
+    info.innerHTML = '📐 Треугольный сигнал 440 Гц. Загрузите свой файл для сравнения спектров';
 });
