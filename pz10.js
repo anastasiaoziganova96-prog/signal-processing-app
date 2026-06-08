@@ -194,4 +194,98 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     ctx.lineWidth = 1.5;
     
     for (let x = 0; x < width; x++) {
-       
+        const freq = (x / width) * maxFreq;
+        let idx = 0;
+        for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
+        if (idx < spectrum.length) {
+            const y = height - spectrum[idx] * height * 2;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    }
+    ctx.stroke();
+    
+    // Средняя линия
+    let avgSpec = 0;
+    for (let i = 100; i < spectrum.length && i < 500; i++) avgSpec += spectrum[i];
+    avgSpec = avgSpec / 400;
+    ctx.beginPath();
+    ctx.strokeStyle = '#ff6666';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    const avgY = height - avgSpec * height * 2;
+    ctx.moveTo(0, avgY);
+    ctx.lineTo(width, avgY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
+
+function playSignal(samples, sampleRate) {
+    initAudio();
+    if (currentSource) {
+        try { currentSource.stop(); } catch(e) {}
+    }
+    
+    const buffer = audioContext.createBuffer(1, samples.length, sampleRate);
+    buffer.copyToChannel(new Float32Array(samples), 0);
+    
+    currentSource = audioContext.createBufferSource();
+    currentSource.buffer = buffer;
+    currentSource.connect(audioContext.destination);
+    currentSource.start();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const durationSlider = document.getElementById('duration10');
+    const meanSlider = document.getElementById('mean10');
+    const varSlider = document.getElementById('var10');
+    const info = document.getElementById('info10');
+    
+    document.getElementById('duration10Val').textContent = durationSlider.value;
+    document.getElementById('mean10Val').textContent = meanSlider.value;
+    document.getElementById('var10Val').textContent = varSlider.value;
+    
+    durationSlider.oninput = () => document.getElementById('duration10Val').textContent = durationSlider.value;
+    meanSlider.oninput = () => document.getElementById('mean10Val').textContent = meanSlider.value;
+    varSlider.oninput = () => document.getElementById('var10Val').textContent = varSlider.value;
+    
+    document.getElementById('genGaussian').onclick = () => {
+        const duration = parseFloat(durationSlider.value);
+        const mean = parseFloat(meanSlider.value);
+        const variance = parseFloat(varSlider.value);
+        
+        currentSamples = generateGaussianNoise(duration, mean, variance, 44100);
+        plotSignal(currentSamples, 'gaussianPlot', '#00ff88');
+        plotHistogram(currentSamples, 'gaussianHistogram');
+        plotSpectrum(currentSamples, 'gaussianSpectrum', 44100);
+        
+        const actualMean = currentSamples.reduce((a,b) => a+b, 0) / currentSamples.length;
+        const actualVar = currentSamples.reduce((a,b) => a + b*b, 0) / currentSamples.length;
+        
+        info.innerHTML = `📊 Гауссов шум: ${duration} секунд<br>📈 Заданные параметры: μ=${mean}, σ²=${variance}<br>📉 Фактические: μ≈${actualMean.toFixed(3)}, σ²≈${actualVar.toFixed(3)}<br>🎨 Гистограмма должна повторять форму "колокола" (красная линия)`;
+    };
+    
+    document.getElementById('playGaussian').onclick = () => {
+        if (currentSamples) {
+            playSignal(currentSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
+    };
+    
+    document.getElementById('stopGaussian').onclick = () => {
+        if (currentSource) {
+            currentSource.stop();
+            currentSource = null;
+            info.innerHTML += `<br>⏹️ Остановлено`;
+        }
+    };
+    
+    // Инициализация
+    currentSamples = generateGaussianNoise(2, 0, 0.5, 44100);
+    plotSignal(currentSamples, 'gaussianPlot', '#00ff88');
+    plotHistogram(currentSamples, 'gaussianHistogram');
+    plotSpectrum(currentSamples, 'gaussianSpectrum', 44100);
+    info.innerHTML = '📊 Гауссов шум. Красная линия на гистограмме - теоретическое распределение';
+});
