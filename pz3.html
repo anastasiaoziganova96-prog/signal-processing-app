@@ -3,57 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ПЗ №3 - Работа с WAV файлами</title>
+    <title>ПЗ №3 - Работа с аудиофайлами</title>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
         <a href="index.html" class="back-button">← На главную</a>
-        <h1 class="section-title">🎚️ ПЗ №3: Работа с WAV файлами</h1>
+        <h1 class="section-title">🎚️ ПЗ №3: Работа с аудиофайлами</h1>
         
         <div class="control-group">
-            <h3>Загрузка аудиофайлов</h3>
-            <input type="file" id="file1" accept=".wav,.mp3">
-            <input type="file" id="file2" accept=".wav,.mp3">
-            <button id="loadFiles">Загрузить и смешать</button>
+            <h3>📁 ЗАГРУЗИТЕ АУДИОФАЙЛ</h3>
+            <input type="file" id="audioFile" accept=".wav,.mp3,.ogg">
+            <button id="loadAudio">Загрузить и проанализировать</button>
         </div>
         
         <div class="control-group">
-            <h3>Микширование</h3>
-            <label>Баланс файла 1:</label>
-            <input type="range" id="mix1" min="0" max="1" value="0.5" step="0.05">
-            <span id="mix1Val">0.5</span>
-            <label>Баланс файла 2:</label>
-            <input type="range" id="mix2" min="0" max="1" value="0.5" step="0.05">
-            <span id="mix2Val">0.5</span>
-            <button id="applyMix">Применить микс</button>
+            <h3>🔄 ОБРАБОТКА</h3>
+            <button id="playOriginal">▶ Прослушать оригинал</button>
+            <button id="playSpeedUp">⚡ Ускорить (x1.5)</button>
+            <button id="playSlowDown">🐌 Замедлить (x0.7)</button>
+            <button id="stopAudio">⏹️ Остановить</button>
         </div>
         
         <div class="control-group">
-            <h3>Изменение скорости (Stretch)</h3>
-            <label>Фактор скорости:</label>
-            <input type="range" id="stretchFactor" min="0.5" max="2" value="1" step="0.05">
-            <span id="stretchVal">1.0</span>
-            <button id="applyStretch">Замедлить/Ускорить</button>
+            <h3>⚙️ ФИЛЬТРАЦИЯ</h3>
+            <label>Low-pass фильтр (частота среза Гц):</label>
+            <input type="range" id="cutoffFreq" min="100" max="4000" value="1000" step="50">
+            <span id="cutoffVal">1000</span> Гц
+            <button id="applyFilter">Применить фильтр</button>
         </div>
         
         <div class="plot-container">
-            <canvas id="signalPlot" width="800" height="200"></canvas>
+            <canvas id="waveformPlot" width="800" height="200"></canvas>
         </div>
         
         <div class="plot-container">
             <canvas id="spectrumPlot" width="800" height="200"></canvas>
         </div>
         
-        <div class="control-group">
-            <h3>Прослушивание</h3>
-            <button id="playSound">▶ Прослушать</button>
-            <button id="stopSound">⏹️ Остановить</button>
+        <div class="plot-container">
+            <canvas id="spectrogramPlot" width="800" height="200"></canvas>
         </div>
         
-        <div id="info3" style="background:#ffe0e8; padding:10px; border-radius:10px; margin-top:10px;">
-            Загрузите два аудиофайла для микширования
+        <div class="info-panel" id="info3">
+            ⚡ Готов к загрузке аудиофайлов (WAV, MP3, OGG)
         </div>
     </div>
     <script src="pz3.js"></script>
