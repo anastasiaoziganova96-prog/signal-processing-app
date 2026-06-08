@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ПЗ №10 - Гауссов шум</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-button">← На главную</a>
+        <h1 class="section-title">📊 ПЗ №10: Гауссов (нормальный) шум</h1>
+        
+        <div class="control-group">
+            <h3>Параметры</h3>
+            <label>Длительность (сек):</label>
+            <input type="range" id="duration10" min="0.5" max="5" value="2" step="0.1">
+            <span id="duration10Val">2.0</span> с<br><br>
+            
+            <label>Среднее значение (μ):</label>
+            <input type="range" id="mean10" min="-0.5" max="0.5" value="0" step="0.01">
+            <span id="mean10Val">0</span><br><br>
+            
+            <label>Дисперсия (σ²):</label>
+            <input type="range" id="var10" min="0.1" max="1" value="0.5" step="0.05">
+            <span id="var10Val">0.5</span><br><br>
+            
+            <button id="genGaussian">Сгенерировать гауссов шум</button>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="gaussianPlot" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="gaussianHistogram" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="plot-container">
+            <canvas id="gaussianSpectrum" width="800" height="200"></canvas>
+        </div>
+        
+        <div class="control-group">
+            <h3>Прослушивание</h3>
+            <button id="playGaussian">▶ Прослушать</button>
+            <button id="stopGaussian">⏹️ Остановить</button>
+        </div>
+        
+        <div id="info10" style="background:#ffe0e8; padding:10px; border-radius:10px;">
+            Гауссов шум имеет нормальное распределение и плоский спектр
+        </div>
+    </div>
+    <script src="pz10.js"></script>
+</body>
+</html>
