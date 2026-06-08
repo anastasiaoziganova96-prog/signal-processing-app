@@ -1,10 +1,11 @@
-// ПЗ №3: Работа с аудиофайлами
+// ПЗ №3: Работа с WAV файлами (ПОЛНАЯ КОПИЯ ФУНКЦИОНАЛА ИЗ COLAB)
 let audioContext = null;
 let currentSource = null;
 let currentSamples = null;
+let loadedSamples1 = null;
+let loadedSamples2 = null;
+let loadedRate1 = 44100, loadedRate2 = 44100;
 let currentRate = 44100;
-let originalSamples = null;
-let originalRate = 44100;
 
 function initAudio() {
     if (!audioContext) {
@@ -15,19 +16,16 @@ function initAudio() {
     }
 }
 
-async function loadAudioFile(file) {
+// Чтение аудиофайла (как в Colab)
+function readAudioFile(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = async (e) => {
+            const arrayBuffer = e.target.result;
             try {
-                const arrayBuffer = e.target.result;
                 const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
                 const samples = audioBuffer.getChannelData(0);
-                resolve({
-                    samples: Array.from(samples),
-                    rate: audioBuffer.sampleRate,
-                    duration: audioBuffer.duration
-                });
+                resolve({ samples: Array.from(samples), rate: audioBuffer.sampleRate });
             } catch (err) {
                 reject(err);
             }
@@ -37,7 +35,28 @@ async function loadAudioFile(file) {
     });
 }
 
-function changeSpeed(samples, rate, factor) {
+// Микширование двух сигналов
+function mixSamples(samples1, samples2, gain1, gain2) {
+    const maxLen = Math.max(samples1.length, samples2.length);
+    const result = new Array(maxLen);
+    
+    for (let i = 0; i < maxLen; i++) {
+        let val1 = i < samples1.length ? samples1[i] : 0;
+        let val2 = i < samples2.length ? samples2[i] : 0;
+        result[i] = val1 * gain1 + val2 * gain2;
+    }
+    
+    const maxAmp = Math.max(...result.map(Math.abs));
+    if (maxAmp > 0) {
+        for (let i = 0; i < result.length; i++) {
+            result[i] = result[i] / maxAmp;
+        }
+    }
+    return result;
+}
+
+// Изменение скорости (stretch) как в Colab
+function stretchSamples(samples, factor) {
     const newLength = Math.floor(samples.length / factor);
     const result = new Array(newLength);
     
@@ -55,25 +74,19 @@ function changeSpeed(samples, rate, factor) {
             result[i] = 0;
         }
     }
-    return { samples: result, rate: rate / factor };
-}
-
-function lowPassFilter(samples, cutoffFreq, sampleRate) {
-    const dt = 1 / sampleRate;
-    const RC = 1 / (2 * Math.PI * cutoffFreq);
-    const alpha = dt / (RC + dt);
     
-    const filtered = new Array(samples.length);
-    filtered[0] = samples[0];
-    
-    for (let i = 1; i < samples.length; i++) {
-        filtered[i] = filtered[i-1] + alpha * (samples[i] - filtered[i-1]);
+    const maxAmp = Math.max(...result.map(Math.abs));
+    if (maxAmp > 0) {
+        for (let i = 0; i < result.length; i++) {
+            result[i] = result[i] / maxAmp;
+        }
     }
-    return filtered;
+    return result;
 }
 
+// Вычисление спектра (БПФ)
 function computeSpectrum(samples, sampleRate) {
-    const n = Math.min(samples.length, 16384);
+    const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -90,32 +103,8 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
-function computeSpectrogram(samples, sampleRate) {
-    const segmentSize = 512;
-    const numSegments = Math.min(Math.floor(samples.length / segmentSize), 100);
-    const spectrogram = [];
-    
-    for (let seg = 0; seg < numSegments; seg++) {
-        const start = seg * segmentSize;
-        const segment = samples.slice(start, start + segmentSize);
-        const spectrum = new Array(segmentSize / 2);
-        
-        for (let k = 0; k < segmentSize / 2; k++) {
-            let real = 0, imag = 0;
-            for (let i = 0; i < segmentSize; i++) {
-                const windowVal = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / segmentSize);
-                const angle = -2 * Math.PI * k * i / segmentSize;
-                real += segment[i] * windowVal * Math.cos(angle);
-                imag += segment[i] * windowVal * Math.sin(angle);
-            }
-            spectrum[k] = Math.sqrt(real*real + imag*imag) / segmentSize;
-        }
-        spectrogram.push(spectrum);
-    }
-    return spectrogram;
-}
-
-function plotWaveform(samples, canvasId) {
+// Построение графика сигнала
+function plotSignal(samples, canvasId) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
@@ -123,11 +112,11 @@ function plotWaveform(samples, canvasId) {
     const width = canvas.width;
     const height = canvas.height;
     
+    const displaySamples = samples.slice(0, Math.min(1000, samples.length));
+    const step = displaySamples.length / width;
+    
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
-    
-    const displaySamples = samples.slice(0, Math.min(samples.length, 3000));
-    const step = displaySamples.length / width;
     
     ctx.strokeStyle = '#444455';
     ctx.lineWidth = 0.5;
@@ -148,13 +137,13 @@ function plotWaveform(samples, canvasId) {
     
     ctx.beginPath();
     ctx.strokeStyle = '#00ff88';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     
     let first = true;
     for (let x = 0; x < width; x++) {
         const idx = Math.floor(x * step);
         if (idx < displaySamples.length) {
-            let y = height / 2 - displaySamples[idx] * height / 1.5;
+            let y = height / 2 - displaySamples[idx] * height / 2;
             y = Math.max(0, Math.min(height, y));
             if (first) {
                 ctx.moveTo(x, y);
@@ -167,7 +156,8 @@ function plotWaveform(samples, canvasId) {
     ctx.stroke();
 }
 
-function plotSpectrumFromSamples(samples, canvasId, sampleRate) {
+// Построение спектра
+function plotSpectrum(samples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
@@ -176,7 +166,7 @@ function plotSpectrumFromSamples(samples, canvasId, sampleRate) {
     const width = canvas.width;
     const height = canvas.height;
     
-    const maxFreq = Math.min(8000, freqs[freqs.length-1]);
+    const maxFreq = Math.min(5000, freqs[freqs.length-1]);
     
     ctx.fillStyle = '#1a1a2e';
     ctx.fillRect(0, 0, width, height);
@@ -215,33 +205,7 @@ function plotSpectrumFromSamples(samples, canvasId, sampleRate) {
     ctx.stroke();
 }
 
-function plotSpectrogramImage(samples, canvasId, sampleRate) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    
-    const spectrogram = computeSpectrogram(samples, sampleRate);
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, width, height);
-    
-    const numSegments = spectrogram.length;
-    const numFreqs = spectrogram[0]?.length || 1;
-    
-    for (let x = 0; x < width && x < numSegments; x++) {
-        for (let y = 0; y < height; y++) {
-            const freqIdx = Math.floor((y / height) * numFreqs);
-            if (freqIdx < numFreqs && spectrogram[x] && spectrogram[x][freqIdx]) {
-                const intensity = Math.min(255, Math.floor(spectrogram[x][freqIdx] * 200));
-                ctx.fillStyle = `rgb(${intensity}, ${100 + intensity/2}, ${100 + intensity/2})`;
-                ctx.fillRect(x, height - y, 1, 1);
-            }
-        }
-    }
-}
-
+// Прослушивание
 function playSignal(samples, rate) {
     initAudio();
     if (currentSource) {
@@ -258,95 +222,90 @@ function playSignal(samples, rate) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const fileInput = document.getElementById('audioFile');
-    const cutoffSlider = document.getElementById('cutoffFreq');
-    const cutoffVal = document.getElementById('cutoffVal');
+    const file1 = document.getElementById('file1');
+    const file2 = document.getElementById('file2');
+    const mix1 = document.getElementById('mix1');
+    const mix2 = document.getElementById('mix2');
+    const stretchFactor = document.getElementById('stretchFactor');
     const info = document.getElementById('info3');
     
-    cutoffSlider.oninput = () => {
-        cutoffVal.textContent = cutoffSlider.value;
-    };
+    document.getElementById('mix1Val').textContent = mix1.value;
+    document.getElementById('mix2Val').textContent = mix2.value;
+    document.getElementById('stretchVal').textContent = stretchFactor.value;
     
-    document.getElementById('loadAudio').onclick = async () => {
-        if (!fileInput.files[0]) {
-            info.innerHTML = '⚠️ Выберите аудиофайл!';
+    mix1.oninput = () => document.getElementById('mix1Val').textContent = mix1.value;
+    mix2.oninput = () => document.getElementById('mix2Val').textContent = mix2.value;
+    stretchFactor.oninput = () => document.getElementById('stretchVal').textContent = stretchFactor.value;
+    
+    // ЗАГРУЗКА ФАЙЛОВ (как в Colab)
+    document.getElementById('loadFiles').onclick = async () => {
+        initAudio();
+        if (!file1.files[0] || !file2.files[0]) {
+            info.innerHTML = '⚠️ Выберите два аудиофайла!';
             return;
         }
         
-        initAudio();
-        info.innerHTML = '⏳ Загрузка файла...';
-        
         try {
-            const data = await loadAudioFile(fileInput.files[0]);
-            originalSamples = data.samples;
-            originalRate = data.rate;
-            currentSamples = [...originalSamples];
-            currentRate = originalRate;
+            info.innerHTML = '⏳ Загрузка файлов...';
+            const [data1, data2] = await Promise.all([
+                readAudioFile(file1.files[0]),
+                readAudioFile(file2.files[0])
+            ]);
             
-            plotWaveform(currentSamples, 'waveformPlot');
-            plotSpectrumFromSamples(currentSamples, 'spectrumPlot', currentRate);
-            plotSpectrogramImage(currentSamples, 'spectrogramPlot', currentRate);
+            loadedSamples1 = data1.samples;
+            loadedSamples2 = data2.samples;
+            loadedRate1 = data1.rate;
+            loadedRate2 = data2.rate;
             
-            info.innerHTML = `✅ Файл загружен!<br>📊 Длительность: ${data.duration.toFixed(2)} сек<br>🎵 Частота дискретизации: ${data.rate} Гц<br>📈 Количество отсчетов: ${data.samples.length}`;
+            currentRate = Math.max(loadedRate1, loadedRate2);
+            currentSamples = mixSamples(loadedSamples1, loadedSamples2, 
+                                        parseFloat(mix1.value), parseFloat(mix2.value));
+            
+            plotSignal(currentSamples, 'signalPlot');
+            plotSpectrum(currentSamples, 'spectrumPlot', currentRate);
+            info.innerHTML = `✅ Файлы загружены!<br>📁 ${file1.files[0].name}: ${(loadedSamples1.length/loadedRate1).toFixed(1)}с<br>📁 ${file2.files[0].name}: ${(loadedSamples2.length/loadedRate2).toFixed(1)}с`;
         } catch (err) {
             info.innerHTML = `❌ Ошибка: ${err.message}`;
         }
     };
     
-    document.getElementById('playOriginal').onclick = () => {
+    // МИКШИРОВАНИЕ
+    document.getElementById('applyMix').onclick = () => {
+        if (!loadedSamples1 || !loadedSamples2) {
+            info.innerHTML = '⚠️ Сначала загрузите файлы!';
+            return;
+        }
+        currentSamples = mixSamples(loadedSamples1, loadedSamples2, 
+                                    parseFloat(mix1.value), parseFloat(mix2.value));
+        plotSignal(currentSamples, 'signalPlot');
+        plotSpectrum(currentSamples, 'spectrumPlot', currentRate);
+        info.innerHTML = `🎛️ Микширование: баланс ${mix1.value} : ${mix2.value}`;
+    };
+    
+    // STRETCH (изменение скорости)
+    document.getElementById('applyStretch').onclick = () => {
+        if (!currentSamples) {
+            info.innerHTML = '⚠️ Нет сигнала для обработки!';
+            return;
+        }
+        const factor = parseFloat(stretchFactor.value);
+        currentSamples = stretchSamples(currentSamples, factor);
+        plotSignal(currentSamples, 'signalPlot');
+        plotSpectrum(currentSamples, 'spectrumPlot', currentRate);
+        info.innerHTML = `🐌 Изменение скорости: фактор ${factor} (${factor>1 ? 'ускорение' : 'замедление'})`;
+    };
+    
+    // ПРОСЛУШИВАНИЕ
+    document.getElementById('playSound').onclick = () => {
         if (currentSamples) {
             playSignal(currentSamples, currentRate);
             info.innerHTML += `<br>🎵 Воспроизведение...`;
         } else {
-            info.innerHTML = '⚠️ Сначала загрузите файл!';
+            info.innerHTML = '⚠️ Нет сигнала! Сначала загрузите файлы';
         }
     };
     
-    document.getElementById('playSpeedUp').onclick = () => {
-        if (originalSamples) {
-            const result = changeSpeed(originalSamples, originalRate, 1.5);
-            currentSamples = result.samples;
-            currentRate = result.rate;
-            plotWaveform(currentSamples, 'waveformPlot');
-            plotSpectrumFromSamples(currentSamples, 'spectrumPlot', currentRate);
-            plotSpectrogramImage(currentSamples, 'spectrogramPlot', currentRate);
-            playSignal(currentSamples, currentRate);
-            info.innerHTML = `⚡ Ускорение: x1.5<br>🎵 Новая частота дискретизации: ${currentRate.toFixed(0)} Гц`;
-        } else {
-            info.innerHTML = '⚠️ Сначала загрузите файл!';
-        }
-    };
-    
-    document.getElementById('playSlowDown').onclick = () => {
-        if (originalSamples) {
-            const result = changeSpeed(originalSamples, originalRate, 0.7);
-            currentSamples = result.samples;
-            currentRate = result.rate;
-            plotWaveform(currentSamples, 'waveformPlot');
-            plotSpectrumFromSamples(currentSamples, 'spectrumPlot', currentRate);
-            plotSpectrogramImage(currentSamples, 'spectrogramPlot', currentRate);
-            playSignal(currentSamples, currentRate);
-            info.innerHTML = `🐌 Замедление: x0.7<br>🎵 Новая частота дискретизации: ${currentRate.toFixed(0)} Гц`;
-        } else {
-            info.innerHTML = '⚠️ Сначала загрузите файл!';
-        }
-    };
-    
-    document.getElementById('applyFilter').onclick = () => {
-        if (originalSamples) {
-            const cutoff = parseFloat(cutoffSlider.value);
-            currentSamples = lowPassFilter(originalSamples, cutoff, originalRate);
-            currentRate = originalRate;
-            plotWaveform(currentSamples, 'waveformPlot');
-            plotSpectrumFromSamples(currentSamples, 'spectrumPlot', currentRate);
-            plotSpectrogramImage(currentSamples, 'spectrogramPlot', currentRate);
-            info.innerHTML = `🔽 Low-pass фильтр: частота среза ${cutoff} Гц`;
-        } else {
-            info.innerHTML = '⚠️ Сначала загрузите файл!';
-        }
-    };
-    
-    document.getElementById('stopAudio').onclick = () => {
+    document.getElementById('stopSound').onclick = () => {
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
