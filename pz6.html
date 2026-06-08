@@ -9,7 +9,7 @@
 <body>
     <div class="container">
         <a href="index.html" class="back-button">← На главную</a>
-        <h1 class="section-title">📈 ПЗ №6: Chirp сигналы (линейный, квадратичный, логарифмический)</h1>
+        <h1 class="section-title">📈 ПЗ №6: Chirp сигналы</h1>
         
         <div class="control-group">
             <h3>Параметры Chirp сигнала</h3>
@@ -32,12 +32,6 @@
                 <option value="logarithmic">Логарифмический</option>
             </select><br><br>
             
-            <label>Тип сигнала:</label>
-            <select id="waveformType">
-                <option value="sine">Синусоидальный</option>
-                <option value="sawtooth">Пилообразный</option>
-            </select><br><br>
-            
             <button id="genChirp">Сгенерировать Chirp</button>
         </div>
         
@@ -46,7 +40,7 @@
         </div>
         
         <div class="plot-container">
-            <canvas id="chirpSpectrogram" width="800" height="300"></canvas>
+            <canvas id="chirpSpectrogram" width="800" height="250"></canvas>
         </div>
         
         <div class="control-group">
@@ -55,8 +49,8 @@
             <button id="stopChirp">⏹️ Остановить</button>
         </div>
         
-        <div id="info6" style="background:#ffe0e8; padding:10px; border-radius:10px;">
-            Линейный Chirp: частота изменяется линейно от f0 до f1
+        <div class="info-panel" id="info6">
+            📈 Линейный Chirp: частота изменяется линейно от f0 до f1
         </div>
     </div>
     <script src="pz6.js"></script>
