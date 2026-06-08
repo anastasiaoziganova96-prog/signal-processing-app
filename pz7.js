@@ -2,7 +2,6 @@
 let audioContext = null;
 let currentSource = null;
 let currentSamples = null;
-let currentRate = 44100;
 
 function initAudio() {
     if (!audioContext) {
@@ -13,13 +12,11 @@ function initAudio() {
     }
 }
 
-// Генерация белого шума (нормальное распределение)
 function generateWhiteNoise(duration, amp, sampleRate = 44100) {
     const numSamples = duration * sampleRate;
     const samples = new Array(numSamples);
     
     for (let i = 0; i < numSamples; i++) {
-        // Метод Бокса-Мюллера для нормального распределения
         let u = 0, v = 0;
         while (u === 0) u = Math.random();
         while (v === 0) v = Math.random();
@@ -27,20 +24,17 @@ function generateWhiteNoise(duration, amp, sampleRate = 44100) {
         samples[i] = amp * z;
     }
     
-    // Нормализация
     const maxAmp = Math.max(...samples.map(Math.abs));
     if (maxAmp > 0) {
         for (let i = 0; i < samples.length; i++) {
             samples[i] = samples[i] / maxAmp;
         }
     }
-    
     return samples;
 }
 
-// Вычисление спектра мощности (периодограмма)
 function computeSpectrum(samples, sampleRate) {
-    const n = samples.length;
+    const n = Math.min(samples.length, 8192);
     const spectrum = new Array(Math.floor(n/2));
     const freqs = new Array(Math.floor(n/2));
     
@@ -57,55 +51,7 @@ function computeSpectrum(samples, sampleRate) {
     return { freqs, spectrum };
 }
 
-// Построение спектрограммы
-function plotSpectrogram(samples, canvasId, sampleRate) {
-    const canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    const segmentSize = 256;
-    const numSegments = Math.min(Math.floor(samples.length / segmentSize), width);
-    
-    ctx.clearRect(0, 0, width, height);
-    
-    const maxFreq = Math.min(8000, sampleRate / 2);
-    
-    for (let seg = 0; seg < numSegments; seg++) {
-        const start = seg * segmentSize;
-        const segment = samples.slice(start, start + segmentSize);
-        
-        // Спектр сегмента с окном Хэмминга
-        const spectrum = new Array(segmentSize / 2);
-        for (let k = 0; k < segmentSize / 2; k++) {
-            let real = 0, imag = 0;
-            for (let i = 0; i < segmentSize; i++) {
-                const windowVal = 0.54 - 0.46 * Math.cos(2 * Math.PI * i / segmentSize);
-                const angle = -2 * Math.PI * k * i / segmentSize;
-                real += segment[i] * windowVal * Math.cos(angle);
-                imag += segment[i] * windowVal * Math.sin(angle);
-            }
-            spectrum[k] = Math.sqrt(real*real + imag*imag) / segmentSize;
-        }
-        
-        // Рисуем
-        for (let y = 0; y < height; y++) {
-            const freq = (y / height) * maxFreq;
-            let idx = Math.floor(freq / maxFreq * (segmentSize / 2));
-            idx = Math.min(idx, spectrum.length - 1);
-            if (idx >= 0 && spectrum[idx] > 0.02) {
-                const intensity = Math.min(200, 100 + Math.floor(spectrum[idx] * 100));
-                ctx.fillStyle = `rgb(${intensity}, ${150 - intensity/2}, ${200 - intensity/2})`;
-                ctx.fillRect(seg, height - y, 1, 1);
-            }
-        }
-    }
-}
-
-// Построение графика сигнала
-function plotSignal(samples, canvasId, color = '#d4728a') {
+function plotSignal(samples, canvasId, color = '#00ff88') {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
     
@@ -116,18 +62,26 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     const displaySamples = samples.slice(0, 800);
     const step = displaySamples.length / width;
     
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
     
-    // Нулевая линия
-    ctx.beginPath();
-    ctx.strokeStyle = '#cccccc';
+    ctx.strokeStyle = '#444455';
     ctx.lineWidth = 0.5;
-    const zeroY = height / 2;
-    ctx.moveTo(0, zeroY);
-    ctx.lineTo(width, zeroY);
+    for (let i = -2; i <= 2; i++) {
+        const y = height / 2 + i * height / 4;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+    }
+    
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, height / 2);
+    ctx.lineTo(width, height / 2);
     ctx.stroke();
     
-    // Сигнал
     ctx.beginPath();
     ctx.strokeStyle = color;
     ctx.lineWidth = 0.8;
@@ -149,7 +103,6 @@ function plotSignal(samples, canvasId, color = '#d4728a') {
     ctx.stroke();
 }
 
-// Построение спектра
 function plotSpectrum(samples, canvasId, sampleRate) {
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -159,43 +112,59 @@ function plotSpectrum(samples, canvasId, sampleRate) {
     const width = canvas.width;
     const height = canvas.height;
     
-    const maxFreq = Math.min(10000, freqs[freqs.length-1]);
-    ctx.clearRect(0, 0, width, height);
+    const maxFreq = Math.min(8000, freqs[freqs.length-1]);
     
-    // Сглаженный спектр
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, width, height);
+    
     ctx.beginPath();
-    ctx.strokeStyle = '#e8a0b5';
-    ctx.fillStyle = '#ffe0e8';
-    ctx.lineWidth = 1;
+    ctx.fillStyle = '#00ff8833';
     
     for (let x = 0; x < width; x++) {
         const freq = (x / width) * maxFreq;
         let idx = 0;
         for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
         if (idx < spectrum.length) {
-            const y = height - spectrum[idx] * height * 1.5;
+            const y = height - spectrum[idx] * height * 2;
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
+    }
+    ctx.lineTo(width, height);
+    ctx.lineTo(0, height);
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.strokeStyle = '#ffaa44';
+    ctx.lineWidth = 1.5;
+    
+    for (let x = 0; x < width; x++) {
+        const freq = (x / width) * maxFreq;
+        let idx = 0;
+        for (let i = 0; i < freqs.length && freqs[i] <= freq; i++) idx = i;
+        if (idx < spectrum.length) {
+            const y = height - spectrum[idx] * height * 2;
             if (x === 0) ctx.moveTo(x, y);
             else ctx.lineTo(x, y);
         }
     }
     ctx.stroke();
     
-    // Добавляем горизонтальную линию среднего уровня
+    // Средняя линия
     let avgSpec = 0;
     for (let i = 100; i < spectrum.length && i < 500; i++) avgSpec += spectrum[i];
     avgSpec = avgSpec / 400;
     ctx.beginPath();
-    ctx.strokeStyle = '#ff9999';
+    ctx.strokeStyle = '#ff6666';
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 5]);
-    const avgY = height - avgSpec * height * 1.5;
+    const avgY = height - avgSpec * height * 2;
     ctx.moveTo(0, avgY);
     ctx.lineTo(width, avgY);
     ctx.stroke();
     ctx.setLineDash([]);
 }
 
-// Прослушивание
 function playSignal(samples, sampleRate) {
     initAudio();
     if (currentSource) {
@@ -214,6 +183,7 @@ function playSignal(samples, sampleRate) {
 document.addEventListener('DOMContentLoaded', () => {
     const durationSlider = document.getElementById('duration7');
     const ampSlider = document.getElementById('amp7');
+    const info = document.getElementById('info7');
     
     document.getElementById('duration7Val').textContent = durationSlider.value;
     document.getElementById('amp7Val').textContent = ampSlider.value;
@@ -221,36 +191,37 @@ document.addEventListener('DOMContentLoaded', () => {
     durationSlider.oninput = () => document.getElementById('duration7Val').textContent = durationSlider.value;
     ampSlider.oninput = () => document.getElementById('amp7Val').textContent = ampSlider.value;
     
-    const info = document.getElementById('info7');
-    
     document.getElementById('genWhiteNoise').onclick = () => {
         const duration = parseFloat(durationSlider.value);
         const amp = parseFloat(ampSlider.value);
         
         currentSamples = generateWhiteNoise(duration, amp, 44100);
-        plotSignal(currentSamples, 'whitePlot');
+        plotSignal(currentSamples, 'whitePlot', '#00ff88');
         plotSpectrum(currentSamples, 'whiteSpectrum', 44100);
-        plotSpectrogram(currentSamples, 'whiteSpectrogram', 44100);
         
-        info.innerHTML = `🔊 Белый шум: ${duration} секунд<br>📊 Спектр равномерный (плоский) - энергия распределена по всем частотам<br>🎨 Спектрограмма: равномерная "заливка", нет временной структуры`;
+        info.innerHTML = `🔊 Белый шум: ${duration} секунд<br>📊 Спектр равномерный (плоский) - энергия распределена по всем частотам<br>Красная пунктирная линия - средний уровень спектра`;
     };
     
     document.getElementById('playWhite').onclick = () => {
-        if (currentSamples) playSignal(currentSamples, 44100);
-        else info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        if (currentSamples) {
+            playSignal(currentSamples, 44100);
+            info.innerHTML += `<br>🎵 Воспроизведение...`;
+        } else {
+            info.innerHTML = '⚠️ Сначала сгенерируйте сигнал!';
+        }
     };
     
     document.getElementById('stopWhite').onclick = () => {
         if (currentSource) {
             currentSource.stop();
             currentSource = null;
+            info.innerHTML += `<br>⏹️ Остановлено`;
         }
     };
     
     // Инициализация
     currentSamples = generateWhiteNoise(2, 0.8, 44100);
-    plotSignal(currentSamples, 'whitePlot');
+    plotSignal(currentSamples, 'whitePlot', '#00ff88');
     plotSpectrum(currentSamples, 'whiteSpectrum', 44100);
-    plotSpectrogram(currentSamples, 'whiteSpectrogram', 44100);
-    info.innerHTML = 'Белый шум. Спектр равномерный (горизонтальная линия - средний уровень)';
+    info.innerHTML = '🔊 Белый шум. Спектр равномерный (плоский)';
 });
