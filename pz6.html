@@ -12,7 +12,7 @@
         <h1 class="section-title">📈 ПЗ №6: Chirp сигналы</h1>
         
         <div class="control-group">
-            <h3>Параметры Chirp сигнала</h3>
+            <h3>📈 ГЕНЕРАЦИЯ CHIRP СИГНАЛА</h3>
             <label>Начальная частота (Гц):</label>
             <input type="range" id="f0" min="100" max="5000" value="100" step="10">
             <span id="f0Val">100</span> Гц<br><br>
@@ -35,24 +35,12 @@
             <button id="genChirp">Сгенерировать Chirp</button>
         </div>
         
+        <div class="control-group">
+            <h3>📁 ЗАГРУЗИТЕ СВОЙ WAV ФАЙЛ</h3>
+            <input type="file" id="uploadWav6" accept=".wav,.mp3,.ogg">
+            <button id="loadWav6">📥 Загрузить и сравнить спектрограмму</button>
+        </div>
+        
         <div class="plot-container">
             <canvas id="chirpPlot" width="800" height="200"></canvas>
-        </div>
-        
-        <div class="plot-container">
-            <canvas id="chirpSpectrogram" width="800" height="250"></canvas>
-        </div>
-        
-        <div class="control-group">
-            <h3>Прослушивание</h3>
-            <button id="playChirp">▶ Прослушать</button>
-            <button id="stopChirp">⏹️ Остановить</button>
-        </div>
-        
-        <div class="info-panel" id="info6">
-            📈 Линейный Chirp: частота изменяется линейно от f0 до f1
-        </div>
-    </div>
-    <script src="pz6.js"></script>
-</body>
-</html>
+        </
