@@ -137,12 +137,19 @@ button:hover, .btn:hover {
     transform: scale(1.02);
 }
 
-canvas, .plot-container {
-    background: white;
-    border-radius: 15px;
-    padding: 15px;
+button:active {
+    transform: scale(0.98);
+}
+
+canvas {
+    background: #1a1a2e;
+    border-radius: 10px;
     margin: 15px 0;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.plot-container {
+    margin: 20px 0;
 }
 
 input[type="file"] {
@@ -154,8 +161,8 @@ input[type="file"] {
 }
 
 input[type="range"] {
-    width: 100%;
-    margin: 10px 0;
+    width: 300px;
+    margin: 10px 10px 10px 0;
 }
 
 .control-group {
@@ -170,4 +177,27 @@ footer {
     padding: 20px;
     color: #b88998;
     margin-top: 40px;
+}
+
+label {
+    display: inline-block;
+    width: 180px;
+    color: #8b5a6b;
+}
+
+select {
+    padding: 8px;
+    border-radius: 20px;
+    border: 1px solid #f0b0c0;
+    background: white;
+    margin: 10px;
+}
+
+.info-panel {
+    background: #1a1a2e;
+    padding: 15px;
+    border-radius: 10px;
+    color: #00ff88;
+    font-family: monospace;
+    margin-top: 15px;
 }
